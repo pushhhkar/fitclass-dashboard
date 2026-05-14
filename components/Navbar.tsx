@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import type { Dashboard } from '@/lib/config';
 
 interface Props {
@@ -10,11 +11,16 @@ interface Props {
 
 export default function Navbar({ dashboards, activeDashboard, onDashboardChange }: Props) {
   return (
-    <header className="border-b border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-0 sm:h-14 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="w-7 h-7 rounded bg-blue-600 flex items-center justify-center">
-          <span className="text-white text-xs font-bold">FC</span>
-        </div>
+    <header className="border-b border-gray-200 bg-white pl-2 pr-4 sm:pr-6 py-2 sm:py-0 sm:h-16 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-3 shrink-0">
+        <Image
+          src="/fitclass logo white.png"
+          alt="FitClass"
+          width={56}
+          height={56}
+          className="object-contain"
+          priority
+        />
         <span className="font-semibold text-gray-800 text-sm tracking-tight">
           FitClass Leads
         </span>
