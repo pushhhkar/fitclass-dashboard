@@ -19,3 +19,12 @@ body {
   border: 1px solid #e5e7eb !important;
   overflow: hidden;
 }
+
+/* Hide scrollbar visually on tab strip while keeping it functional */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

@@ -7,9 +7,9 @@ interface Props {
 
 export default function SearchBar({ value, onChange }: Props) {
   return (
-    <div className="relative">
+    <div className="relative w-full sm:w-64">
       <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -26,7 +26,7 @@ export default function SearchBar({ value, onChange }: Props) {
         placeholder="Search leads…"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-md bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64"
+        className="w-full pl-9 pr-4 py-2.5 sm:py-2 text-sm border border-gray-200 rounded-md bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
       />
     </div>
   );

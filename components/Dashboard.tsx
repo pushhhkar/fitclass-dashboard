@@ -31,7 +31,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-w-0">
       <Navbar
         dashboards={DASHBOARDS}
         activeDashboard={activeDashboard}
@@ -46,7 +46,8 @@ export default function Dashboard() {
 
       <StatsCards stats={stats} />
 
-      <div className="flex items-center justify-between px-6 pb-3">
+      {/* Controls row: branch label + lead count on left, error + search on right */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-6 pb-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600 font-medium">{activeBranch.name}</span>
           {!loading && (
@@ -55,9 +56,9 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           {error && (
-            <span className="text-xs text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100">
+            <span className="text-xs text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100 text-center">
               {error}
             </span>
           )}
@@ -65,7 +66,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="px-6 pb-6 relative flex-1">
+      {/* Table: overflow-x-auto so mobile can scroll horizontally */}
+      <div className="px-4 sm:px-6 pb-6 relative flex-1 min-w-0 overflow-x-auto">
         <LeadsTable
           leads={leads}
           loading={loading}

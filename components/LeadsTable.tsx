@@ -162,7 +162,10 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
   }
 
   return (
-    <div className="ag-theme-alpine w-full" style={{ height: 'calc(100vh - 260px)', minHeight: 400 }}>
+    <div
+      className="ag-theme-alpine w-full"
+      style={{ height: 'calc(100vh - 280px)', minHeight: 400, minWidth: 640 }}
+    >
       <style>{`
         .ag-theme-alpine {
           --ag-font-size: 13px;

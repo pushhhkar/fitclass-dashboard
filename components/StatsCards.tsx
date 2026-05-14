@@ -34,13 +34,13 @@ export default function StatsCards({ stats }: Props) {
   const timeLabel = useRelativeTime(stats.lastUpdated);
 
   return (
-    <div className="px-6 py-4 flex items-end gap-4">
-      <div className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex flex-col gap-1 min-w-[120px]">
+    <div className="px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-end gap-3">
+      <div className="bg-white border border-gray-200 rounded-lg px-4 sm:px-5 py-3 sm:py-4 flex flex-col gap-1 min-w-[110px]">
         <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Leads</span>
         <span className="text-2xl font-bold text-gray-800">{stats.total}</span>
       </div>
       {timeLabel && (
-        <span className="text-xs text-gray-400 pb-4">
+        <span className="text-xs text-gray-400 pb-3 sm:pb-4">
           Updated {timeLabel}
         </span>
       )}

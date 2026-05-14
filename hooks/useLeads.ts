@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Lead, StatsData, UpdatePayload } from '@/types';
 
-const REFRESH_INTERVAL_MS = 180_000; // 3 minutes
+const REFRESH_INTERVAL_MS = 300_000; // 5 minutes
 
 interface UseLeadsReturn {
   leads: Lead[];
