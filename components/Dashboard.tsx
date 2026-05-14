@@ -11,8 +11,8 @@ import LeadsTable from './LeadsTable';
 
 export default function Dashboard() {
   const [activeDashboard, setActiveDashboard] = useState<Dashboard>(DASHBOARDS[0]);
-  const [activeBranch, setActiveBranch] = useState<DashboardBranch>(DASHBOARDS[0].branches[0]);
-  const [search, setSearch] = useState('');
+  const [activeBranch, setActiveBranch]       = useState<DashboardBranch>(DASHBOARDS[0].branches[0]);
+  const [search, setSearch]                   = useState('');
 
   const { leads, stats, loading, error, updateLead } = useLeads(
     activeDashboard.id,
@@ -44,37 +44,44 @@ export default function Dashboard() {
         onChange={handleBranchChange}
       />
 
-      <StatsCards stats={stats} />
+      {/* Stats — pass live leads so sub-cards count dynamically */}
+      <StatsCards stats={stats} leads={leads} />
 
-      {/* Controls row */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-6 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-[#0F172A]">{activeBranch.name}</span>
-          {!loading && (
-            <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium">
-              {leads.length} leads
-            </span>
-          )}
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          {error && (
-            <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1 rounded-full border border-orange-100 text-center">
-              {error}
-            </span>
-          )}
-          <SearchBar value={search} onChange={setSearch} />
-        </div>
-      </div>
+      {/* Table container — premium card */}
+      <div className="px-4 sm:px-6 pb-6 flex-1 min-w-0 flex flex-col">
+        <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm flex flex-col flex-1 overflow-hidden">
 
-      {/* Table */}
-      <div className="px-4 sm:px-6 pb-6 relative flex-1 min-w-0 overflow-x-auto">
-        <LeadsTable
-          leads={leads}
-          loading={loading}
-          search={search}
-          onUpdate={updateLead}
-          dashboardId={activeDashboard.id}
-        />
+          {/* Table toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-5 py-3 border-b border-[#F1F5F9]">
+            <div className="flex items-center gap-2.5">
+              <span className="text-sm font-semibold text-[#0F172A]">{activeBranch.name}</span>
+              {!loading && (
+                <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium tabular-nums">
+                  {leads.length} total
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {error && (
+                <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 text-center">
+                  {error}
+                </span>
+              )}
+              <SearchBar value={search} onChange={setSearch} />
+            </div>
+          </div>
+
+          {/* AG Grid fills remaining height */}
+          <div className="flex-1 relative overflow-x-auto">
+            <LeadsTable
+              leads={leads}
+              loading={loading}
+              search={search}
+              onUpdate={updateLead}
+              dashboardId={activeDashboard.id}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
