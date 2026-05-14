@@ -21,22 +21,35 @@ interface Props {
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
 }
 
-const STATUS_CELL_STYLE = (status: string) => {
-  const map: Record<string, string> = {
-    New: 'bg-gray-100 text-gray-700',
-    Contacted: 'bg-blue-100 text-blue-700',
-    Interested: 'bg-green-100 text-green-700',
-    'Not Interested': 'bg-red-100 text-red-700',
-    Converted: 'bg-emerald-100 text-emerald-700',
-    'Follow Up': 'bg-yellow-100 text-yellow-700',
-  };
-  return map[status] ?? 'bg-gray-100 text-gray-600';
+const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
+  New:             { bg: '#F1F5F9', text: '#475569', dot: '#94A3B8' },
+  Contacted:       { bg: '#EFF6FF', text: '#1D4ED8', dot: '#3B82F6' },
+  Interested:      { bg: '#F0FDF4', text: '#15803D', dot: '#22C55E' },
+  'Not Interested':{ bg: '#FFF7ED', text: '#C2410C', dot: '#F97316' },
+  Converted:       { bg: '#ECFDF5', text: '#065F46', dot: '#10B981' },
+  'Follow Up':     { bg: '#FFFBEB', text: '#92400E', dot: '#F59E0B' },
 };
 
 function StatusBadge({ value }: { value: string }) {
+  const style = STATUS_STYLES[value];
+  if (!style) {
+    return (
+      <span style={{ background: '#F1F5F9', color: '#64748B' }}
+        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium">
+        {value || '—'}
+      </span>
+    );
+  }
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_CELL_STYLE(value)}`}>
-      {value || '—'}
+    <span
+      style={{ background: style.bg, color: style.text }}
+      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
+    >
+      <span
+        style={{ background: style.dot }}
+        className="w-1.5 h-1.5 rounded-full shrink-0"
+      />
+      {value}
     </span>
   );
 }
@@ -44,7 +57,7 @@ function StatusBadge({ value }: { value: string }) {
 const STATUS_COL: ColDef<Lead> = {
   headerName: 'Status',
   field: 'Status',
-  width: 145,
+  width: 155,
   editable: true,
   sortable: true,
   filter: true,
@@ -72,15 +85,15 @@ const META_COLUMNS: ColDef<Lead>[] = [
     editable: true,
     filter: true,
     cellEditor: 'agTextCellEditor',
-    cellStyle: { color: '#374151' },
+    cellStyle: { color: '#475569' },
     headerClass: 'editable-col-header',
   },
 ];
 
 const WEBSITE_COLUMNS: ColDef<Lead>[] = [
-  { headerName: 'Date',            field: 'createdTime',  width: 130,            editable: false, sortable: true, filter: true },
+  { headerName: 'Date',            field: 'createdTime',  width: 130,             editable: false, sortable: true, filter: true },
   { headerName: 'First Name',      field: 'fullName',     flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
-  { headerName: 'Phone Number',    field: 'phoneNumber',  width: 150,            editable: false, filter: true },
+  { headerName: 'Phone Number',    field: 'phoneNumber',  width: 150,             editable: false, filter: true },
   { headerName: 'Email Address',   field: 'email',        flex: 1, minWidth: 180, editable: false, filter: true },
   { headerName: 'Reason',          field: 'joiningPlan',  flex: 1, minWidth: 140, editable: false, sortable: true, filter: true },
   STATUS_COL,
@@ -92,10 +105,10 @@ const WEBSITE_COLUMNS: ColDef<Lead>[] = [
     editable: true,
     filter: true,
     cellEditor: 'agTextCellEditor',
-    cellStyle: { color: '#374151' },
+    cellStyle: { color: '#475569' },
     headerClass: 'editable-col-header',
   },
-  { headerName: 'Transfer Branch', field: 'address',      width: 160, editable: false, sortable: true, filter: true },
+  { headerName: 'Transfer Branch', field: 'address', width: 160, editable: false, sortable: true, filter: true },
 ];
 
 export default function LeadsTable({ leads, loading, search, dashboardId, onUpdate }: Props) {
@@ -128,7 +141,7 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
     () => ({
       resizable: true,
       suppressMovable: false,
-      cellStyle: { fontSize: '13px', color: '#374151' },
+      cellStyle: { fontSize: '13px', color: '#0F172A' },
     }),
     []
   );
@@ -155,7 +168,7 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+      <div className="flex items-center justify-center h-48 text-[#94A3B8] text-sm">
         Loading leads…
       </div>
     );
@@ -169,39 +182,57 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
       <style>{`
         .ag-theme-alpine {
           --ag-font-size: 13px;
-          --ag-header-background-color: #f9fafb;
-          --ag-header-foreground-color: #6b7280;
-          --ag-border-color: #e5e7eb;
-          --ag-row-hover-color: #f0f7ff;
-          --ag-selected-row-background-color: #eff6ff;
+          --ag-font-family: ui-sans-serif, system-ui, sans-serif;
+          --ag-header-background-color: #F8FAFC;
+          --ag-header-foreground-color: #64748B;
+          --ag-border-color: #E2E8F0;
+          --ag-row-border-color: #F1F5F9;
+          --ag-row-hover-color: #F0F7FF;
+          --ag-selected-row-background-color: #EFF6FF;
           --ag-odd-row-background-color: #ffffff;
           --ag-background-color: #ffffff;
-          font-family: ui-sans-serif, system-ui, sans-serif;
+          --ag-secondary-foreground-color: #64748B;
+          --ag-input-focus-border-color: #0A6BA8;
+          --ag-range-selection-border-color: #0A6BA8;
         }
         .ag-theme-alpine .ag-header-cell-text {
-          font-weight: 600;
-          font-size: 12px;
+          font-weight: 700;
+          font-size: 11px;
           text-transform: uppercase;
-          letter-spacing: 0.03em;
+          letter-spacing: 0.06em;
+          color: #64748B;
+        }
+        .ag-theme-alpine .ag-header-cell {
+          border-right: 1px solid #F1F5F9;
         }
         .ag-theme-alpine .editable-col-header .ag-header-cell-text::after {
           content: " ✎";
           font-size: 10px;
-          color: #3b82f6;
+          color: #0A6BA8;
           font-style: normal;
         }
         .ag-theme-alpine .ag-cell-inline-editing {
-          border-color: #3b82f6 !important;
-          box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+          border-color: #0A6BA8 !important;
+          box-shadow: 0 0 0 3px rgba(10,107,168,0.12);
         }
         .ag-theme-alpine .ag-paging-panel {
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid #E2E8F0;
           font-size: 12px;
-          color: #6b7280;
+          color: #64748B;
+          background: #F8FAFC;
+        }
+        .ag-theme-alpine .ag-paging-button {
+          color: #0A6BA8;
+        }
+        .ag-theme-alpine .ag-row {
+          border-bottom: 1px solid #F1F5F9;
+        }
+        .ag-theme-alpine .ag-row:hover {
+          background-color: #F0F7FF;
         }
       `}</style>
       {savingRow !== null && (
-        <div className="absolute right-6 top-2 text-xs text-blue-500 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 z-10">
+        <div className="absolute right-6 top-2 text-xs text-[#0A6BA8] bg-blue-50 px-3 py-1 rounded-full border border-[#BFDBFE] z-10 font-medium shadow-sm">
           Saving…
         </div>
       )}
@@ -215,8 +246,8 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
         pagination
         paginationPageSize={50}
         paginationPageSizeSelector={[25, 50, 100]}
-        rowHeight={44}
-        headerHeight={40}
+        rowHeight={46}
+        headerHeight={42}
         animateRows={false}
         suppressCellFocus={false}
         enableCellTextSelection

@@ -10,7 +10,7 @@ interface Props {
 
 export default function BranchTabs({ branches, activeId, onChange }: Props) {
   return (
-    <div className="border-b border-gray-200 bg-white">
+    <div className="border-b border-[#E2E8F0] bg-white">
       <div className="flex overflow-x-auto scrollbar-hide px-4 sm:px-6 gap-0">
         {branches.map((branch) => {
           const isActive = branch.id === activeId;
@@ -19,10 +19,10 @@ export default function BranchTabs({ branches, activeId, onChange }: Props) {
               key={branch.id}
               onClick={() => onChange(branch)}
               className={[
-                'shrink-0 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                'shrink-0 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap',
                 isActive
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                  ? 'border-[#0A6BA8] text-[#0A6BA8] bg-[#0A6BA8]/[0.04]'
+                  : 'border-transparent text-[#64748B] hover:text-[#0F172A] hover:border-[#CBD5E1]',
               ].join(' ')}
             >
               {branch.name}

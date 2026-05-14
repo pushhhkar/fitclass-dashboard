@@ -31,7 +31,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full min-w-0">
+    <div className="flex flex-col h-full min-w-0 bg-[#F8FAFC]">
       <Navbar
         dashboards={DASHBOARDS}
         activeDashboard={activeDashboard}
@@ -46,19 +46,19 @@ export default function Dashboard() {
 
       <StatsCards stats={stats} />
 
-      {/* Controls row: branch label + lead count on left, error + search on right */}
+      {/* Controls row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-6 pb-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 font-medium">{activeBranch.name}</span>
+          <span className="text-sm font-semibold text-[#0F172A]">{activeBranch.name}</span>
           {!loading && (
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-              {leads.length} total
+            <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium">
+              {leads.length} leads
             </span>
           )}
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           {error && (
-            <span className="text-xs text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100 text-center">
+            <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1 rounded-full border border-orange-100 text-center">
               {error}
             </span>
           )}
@@ -66,7 +66,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Table: overflow-x-auto so mobile can scroll horizontally */}
+      {/* Table */}
       <div className="px-4 sm:px-6 pb-6 relative flex-1 min-w-0 overflow-x-auto">
         <LeadsTable
           leads={leads}

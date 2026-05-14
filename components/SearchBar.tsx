@@ -9,7 +9,7 @@ export default function SearchBar({ value, onChange }: Props) {
   return (
     <div className="relative w-full sm:w-64">
       <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] w-4 h-4 pointer-events-none"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -26,7 +26,7 @@ export default function SearchBar({ value, onChange }: Props) {
         placeholder="Search leads…"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full pl-9 pr-4 py-2.5 sm:py-2 text-sm border border-gray-200 rounded-md bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        className="w-full pl-9 pr-4 py-2.5 sm:py-2 text-sm border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#0A6BA8]/20 focus:border-[#0A6BA8] transition-colors hover:border-[#94A3B8]"
       />
     </div>
   );
