@@ -1,67 +1,64 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useBranches } from '@/hooks/useBranches';
+import { useState } from 'react';
+import { DASHBOARDS, type Dashboard, type DashboardBranch } from '@/lib/config';
 import { useLeads } from '@/hooks/useLeads';
+import Navbar from './Navbar';
 import BranchTabs from './BranchTabs';
 import StatsCards from './StatsCards';
 import SearchBar from './SearchBar';
 import LeadsTable from './LeadsTable';
 
 export default function Dashboard() {
-  const { tabs, loading: tabsLoading, error: tabsError } = useBranches();
-  const [activeTab, setActiveTab] = useState<string>('');
+  const [activeDashboard, setActiveDashboard] = useState<Dashboard>(DASHBOARDS[0]);
+  const [activeBranch, setActiveBranch] = useState<DashboardBranch>(DASHBOARDS[0].branches[0]);
   const [search, setSearch] = useState('');
 
-  // Set the first tab once tabs are loaded
-  useEffect(() => {
-    if (tabs.length > 0 && activeTab === '') {
-      setActiveTab(tabs[0]);
-    }
-  }, [tabs, activeTab]);
+  const { leads, stats, loading, error, updateLead } = useLeads(
+    activeDashboard.id,
+    activeBranch.sheetName
+  );
 
-  const { leads, stats, loading: leadsLoading, error: leadsError, updateLead } = useLeads(activeTab);
-
-  const handleTabChange = (tab: string) => {
+  const handleDashboardChange = (dashboard: Dashboard) => {
+    setActiveDashboard(dashboard);
+    setActiveBranch(dashboard.branches[0]);
     setSearch('');
-    setActiveTab(tab);
   };
 
-  if (tabsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
-        Loading branches…
-      </div>
-    );
-  }
-
-  if (tabsError) {
-    return (
-      <div className="flex items-center justify-center h-64 text-red-500 text-sm">
-        Failed to load branches: {tabsError}
-      </div>
-    );
-  }
+  const handleBranchChange = (branch: DashboardBranch) => {
+    setActiveBranch(branch);
+    setSearch('');
+  };
 
   return (
     <div className="flex flex-col h-full">
-      <BranchTabs tabs={tabs} active={activeTab} onChange={handleTabChange} />
+      <Navbar
+        dashboards={DASHBOARDS}
+        activeDashboard={activeDashboard}
+        onDashboardChange={handleDashboardChange}
+      />
+
+      <BranchTabs
+        branches={activeDashboard.branches}
+        activeId={activeBranch.id}
+        onChange={handleBranchChange}
+      />
 
       <StatsCards stats={stats} />
 
       <div className="flex items-center justify-between px-6 pb-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 font-medium">{activeTab}</span>
-          {!leadsLoading && (
+          <span className="text-sm text-gray-600 font-medium">{activeBranch.name}</span>
+          {!loading && (
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
               {leads.length} total
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
-          {leadsError && (
+          {error && (
             <span className="text-xs text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100">
-              {leadsError}
+              {error}
             </span>
           )}
           <SearchBar value={search} onChange={setSearch} />
@@ -71,7 +68,7 @@ export default function Dashboard() {
       <div className="px-6 pb-6 relative flex-1">
         <LeadsTable
           leads={leads}
-          loading={leadsLoading}
+          loading={loading}
           search={search}
           onUpdate={updateLead}
         />

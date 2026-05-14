@@ -17,7 +17,7 @@ interface Props {
   leads: Lead[];
   loading: boolean;
   search: string;
-  onUpdate: (payload: Omit<UpdatePayload, 'sheetName'>) => Promise<void>;
+  onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
 }
 
 const STATUS_CELL_STYLE = (status: string) => {

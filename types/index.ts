@@ -32,5 +32,6 @@ export interface UpdatePayload {
   rowIndex: number;
   field: 'Status' | 'Comments';
   value: string;
+  dashboardId: string;
   sheetName: string;
 }

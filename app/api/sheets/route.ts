@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateCell } from '@/lib/sheets';
+import { getSpreadsheetId } from '@/lib/dashboard-secrets';
 import type { UpdatePayload } from '@/types';
 
 export async function PATCH(req: NextRequest) {
@@ -11,9 +12,9 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { rowIndex, field, value, sheetName } = body;
+  const { rowIndex, field, value, dashboardId, sheetName } = body;
 
-  if (!rowIndex || !field || value === undefined || !sheetName) {
+  if (!rowIndex || !field || value === undefined || !dashboardId || !sheetName) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -22,7 +23,8 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
-    await updateCell({ rowIndex, field, value, sheetName });
+    const spreadsheetId = getSpreadsheetId(dashboardId);
+    await updateCell({ rowIndex, field, value, dashboardId, sheetName, spreadsheetId });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[PATCH /api/sheets]', err);

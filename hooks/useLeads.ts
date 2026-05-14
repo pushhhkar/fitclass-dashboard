@@ -9,18 +9,30 @@ interface UseLeadsReturn {
   stats: StatsData;
   loading: boolean;
   error: string | null;
-  updateLead: (payload: Omit<UpdatePayload, 'sheetName'>) => Promise<void>;
+  updateLead: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
 }
 
-export function useLeads(sheetName: string): UseLeadsReturn {
+export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Keep a ref to the latest dashboardId/sheetName so the interval callback
+  // always uses current values without being a dependency that restarts the effect.
+  const dashboardIdRef = useRef(dashboardId);
+  const sheetNameRef   = useRef(sheetName);
+  dashboardIdRef.current = dashboardId;
+  sheetNameRef.current   = sheetName;
+
   const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/leads?sheet=${encodeURIComponent(sheetName)}`);
+      const params = new URLSearchParams({
+        dashboardId: dashboardIdRef.current,
+        sheet:       sheetNameRef.current,
+      });
+      const res = await fetch(`/api/leads?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: Lead[] = await res.json();
       setLeads(data);
@@ -30,21 +42,25 @@ export function useLeads(sheetName: string): UseLeadsReturn {
     } finally {
       setLoading(false);
     }
-  }, [sheetName]);
+  }, []); // stable — never recreated; reads latest values via refs
 
+  // Re-run only when the target (dashboard or branch) actually changes.
   useEffect(() => {
     setLeads([]);
     setLoading(true);
+
+    if (timerRef.current) clearInterval(timerRef.current);
     fetchData();
     timerRef.current = setInterval(fetchData, POLL_INTERVAL_MS);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [fetchData]);
+  }, [dashboardId, sheetName, fetchData]); // fetchData is stable, so this runs only on id changes
 
   const updateLead = useCallback(
-    async (payload: Omit<UpdatePayload, 'sheetName'>) => {
-      // Optimistic local update
+    async (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => {
+      // Optimistic update
       setLeads((prev) =>
         prev.map((l) =>
           l.rowIndex === payload.rowIndex ? { ...l, [payload.field]: payload.value } : l
@@ -54,7 +70,11 @@ export function useLeads(sheetName: string): UseLeadsReturn {
       const res = await fetch('/api/sheets', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, sheetName }),
+        body: JSON.stringify({
+          ...payload,
+          dashboardId: dashboardIdRef.current,
+          sheetName:   sheetNameRef.current,
+        }),
       });
 
       if (!res.ok) {
@@ -62,12 +82,14 @@ export function useLeads(sheetName: string): UseLeadsReturn {
         throw new Error('Failed to save to Google Sheets');
       }
     },
-    [sheetName, fetchData]
+    [fetchData]
   );
 
-  const stats: StatsData = {
-    total: leads.length,
+  return {
+    leads,
+    stats: { total: leads.length },
+    loading,
+    error,
+    updateLead,
   };
-
-  return { leads, stats, loading, error, updateLead };
 }

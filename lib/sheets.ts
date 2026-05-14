@@ -15,16 +15,11 @@ function getSheets() {
   return google.sheets({ version: 'v4', auth: getAuth() });
 }
 
-function getSpreadsheetId(): string {
-  const id = process.env.GOOGLE_SPREADSHEET_ID;
-  if (!id) throw new Error('GOOGLE_SPREADSHEET_ID env variable is not set');
-  return id;
-}
-
-export async function fetchTabNames(): Promise<string[]> {
+export async function fetchTabNames(spreadsheetId: string): Promise<string[]> {
+  if (!spreadsheetId) throw new Error('spreadsheetId is required');
   const sheets = getSheets();
   const res = await sheets.spreadsheets.get({
-    spreadsheetId: getSpreadsheetId(),
+    spreadsheetId,
     fields: 'sheets.properties.title',
   });
   return (res.data.sheets ?? [])
@@ -32,14 +27,21 @@ export async function fetchTabNames(): Promise<string[]> {
     .filter(Boolean);
 }
 
-export async function fetchLeads(sheetName: string): Promise<Lead[]> {
-  const sheets = getSheets();
-  const range = `${sheetName}!${SHEET_DATA_RANGE}`;
+// Wraps a sheet name in single quotes and escapes any embedded single quotes.
+// Required by the Sheets API for tab names containing spaces or special chars.
+function sheetRange(name: string, suffix: string): string {
+  const escaped = name.replace(/'/g, "\\'");
+  const range = `'${escaped}'!${suffix}`;
+  console.log('[sheets] range:', range);
+  return range;
+}
 
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: getSpreadsheetId(),
-    range,
-  });
+export async function fetchLeads(spreadsheetId: string, sheetName: string): Promise<Lead[]> {
+  if (!spreadsheetId) throw new Error('spreadsheetId is required');
+  const sheets = getSheets();
+  const range = sheetRange(sheetName, SHEET_DATA_RANGE);
+
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
 
   // Filter out empty rows — Sheets returns pre-allocated blank rows up to the grid size
   const rows = (res.data.values ?? []).filter((row) =>
@@ -60,17 +62,19 @@ export async function fetchLeads(sheetName: string): Promise<Lead[]> {
   }));
 }
 
-export async function updateCell(payload: UpdatePayload): Promise<void> {
+export async function updateCell(
+  payload: UpdatePayload & { spreadsheetId: string }
+): Promise<void> {
   const sheets = getSheets();
   const colLetter =
     payload.field === 'Status'
       ? columnLetter(SHEET_COLUMNS.Status)
       : columnLetter(SHEET_COLUMNS.Comments);
 
-  const range = `${payload.sheetName}!${colLetter}${payload.rowIndex}`;
+  const range = sheetRange(payload.sheetName, `${colLetter}${payload.rowIndex}`);
 
   await sheets.spreadsheets.values.update({
-    spreadsheetId: getSpreadsheetId(),
+    spreadsheetId: payload.spreadsheetId,
     range,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[payload.value]] },
