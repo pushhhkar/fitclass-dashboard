@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Lead, StatsData, UpdatePayload } from '@/types';
-import { POLL_INTERVAL_MS } from '@/lib/config';
+
+const REFRESH_INTERVAL_MS = 180_000; // 3 minutes
 
 interface UseLeadsReturn {
   leads: Lead[];
@@ -16,17 +17,17 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Keep a ref to the latest dashboardId/sheetName so the interval callback
-  // always uses current values without being a dependency that restarts the effect.
   const dashboardIdRef = useRef(dashboardId);
   const sheetNameRef   = useRef(sheetName);
   dashboardIdRef.current = dashboardId;
   sheetNameRef.current   = sheetName;
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  // silent=true → background refresh; no loading spinner, no table reset
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams({
         dashboardId: dashboardIdRef.current,
@@ -36,31 +37,33 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: Lead[] = await res.json();
       setLeads(data);
+      setLastUpdated(new Date());
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []); // stable — never recreated; reads latest values via refs
+  }, []);
 
-  // Re-run only when the target (dashboard or branch) actually changes.
   useEffect(() => {
+    // Tab/dashboard changed — reset and do a full (non-silent) load
     setLeads([]);
     setLoading(true);
+    setLastUpdated(null);
 
     if (timerRef.current) clearInterval(timerRef.current);
-    fetchData();
-    timerRef.current = setInterval(fetchData, POLL_INTERVAL_MS);
+
+    fetchData(false);
+    timerRef.current = setInterval(() => fetchData(true), REFRESH_INTERVAL_MS);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [dashboardId, sheetName, fetchData]); // fetchData is stable, so this runs only on id changes
+  }, [dashboardId, sheetName, fetchData]);
 
   const updateLead = useCallback(
     async (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => {
-      // Optimistic update
       setLeads((prev) =>
         prev.map((l) =>
           l.rowIndex === payload.rowIndex ? { ...l, [payload.field]: payload.value } : l
@@ -78,7 +81,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
       });
 
       if (!res.ok) {
-        await fetchData();
+        await fetchData(true);
         throw new Error('Failed to save to Google Sheets');
       }
     },
@@ -87,7 +90,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
 
   return {
     leads,
-    stats: { total: leads.length },
+    stats: { total: leads.length, lastUpdated },
     loading,
     error,
     updateLead,

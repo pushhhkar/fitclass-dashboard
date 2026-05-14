@@ -27,6 +27,7 @@ export interface Branch {
 
 export interface StatsData {
   total: number;
+  lastUpdated: Date | null;
 }
 
 export interface UpdatePayload {

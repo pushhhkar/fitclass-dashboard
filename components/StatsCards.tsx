@@ -1,20 +1,29 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { StatsData } from '@/types';
 
-interface StatCardProps {
-  label: string;
-  value: number;
-  accent?: string;
-}
+function useRelativeTime(date: Date | null): string {
+  const [label, setLabel] = useState('');
 
-function StatCard({ label, value, accent = 'text-gray-800' }: StatCardProps) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex flex-col gap-1 min-w-[120px]">
-      <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</span>
-      <span className={`text-2xl font-bold ${accent}`}>{value}</span>
-    </div>
-  );
+  useEffect(() => {
+    if (!date) { setLabel(''); return; }
+
+    const update = () => {
+      const secs = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (secs < 10)  { setLabel('just now'); return; }
+      if (secs < 60)  { setLabel(`${secs}s ago`); return; }
+      const mins = Math.floor(secs / 60);
+      if (mins < 60)  { setLabel(`${mins}m ago`); return; }
+      setLabel(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+
+    update();
+    const id = setInterval(update, 15_000);
+    return () => clearInterval(id);
+  }, [date]);
+
+  return label;
 }
 
 interface Props {
@@ -22,9 +31,19 @@ interface Props {
 }
 
 export default function StatsCards({ stats }: Props) {
+  const timeLabel = useRelativeTime(stats.lastUpdated);
+
   return (
-    <div className="px-6 py-4">
-      <StatCard label="Total Leads" value={stats.total} accent="text-gray-800" />
+    <div className="px-6 py-4 flex items-end gap-4">
+      <div className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex flex-col gap-1 min-w-[120px]">
+        <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Leads</span>
+        <span className="text-2xl font-bold text-gray-800">{stats.total}</span>
+      </div>
+      {timeLabel && (
+        <span className="text-xs text-gray-400 pb-4">
+          Updated {timeLabel}
+        </span>
+      )}
     </div>
   );
 }
