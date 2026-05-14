@@ -17,6 +17,7 @@ interface Props {
   leads: Lead[];
   loading: boolean;
   search: string;
+  dashboardId: string;
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
 }
 
@@ -40,9 +41,68 @@ function StatusBadge({ value }: { value: string }) {
   );
 }
 
-export default function LeadsTable({ leads, loading, search, onUpdate }: Props) {
+const STATUS_COL: ColDef<Lead> = {
+  headerName: 'Status',
+  field: 'Status',
+  width: 145,
+  editable: true,
+  sortable: true,
+  filter: true,
+  cellEditor: 'agSelectCellEditor',
+  cellEditorParams: { values: STATUS_OPTIONS },
+  cellRenderer: (params: { value: string }) => <StatusBadge value={params.value} />,
+  cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
+  headerClass: 'editable-col-header',
+};
+
+const META_COLUMNS: ColDef<Lead>[] = [
+  { headerName: 'Created Time',  field: 'createdTime',        width: 150, editable: false, sortable: true, filter: true },
+  { headerName: 'Campaign',      field: 'campaignName',       width: 140, editable: false, sortable: true, filter: true },
+  { headerName: 'Joining Plan',  field: 'joiningPlan',        width: 120, editable: false, sortable: true, filter: true },
+  { headerName: 'Membership',    field: 'membershipInterest', width: 130, editable: false, sortable: true, filter: true },
+  { headerName: 'Full Name',     field: 'fullName',           flex: 1, minWidth: 140, editable: false, sortable: true, filter: true },
+  { headerName: 'Phone',         field: 'phoneNumber',        width: 130, editable: false, filter: true },
+  { headerName: 'Address',       field: 'address',            flex: 1, minWidth: 160, editable: false, filter: true },
+  STATUS_COL,
+  {
+    headerName: 'Comments',
+    field: 'Comments',
+    flex: 2,
+    minWidth: 200,
+    editable: true,
+    filter: true,
+    cellEditor: 'agTextCellEditor',
+    cellStyle: { color: '#374151' },
+    headerClass: 'editable-col-header',
+  },
+];
+
+const WEBSITE_COLUMNS: ColDef<Lead>[] = [
+  { headerName: 'Date',            field: 'createdTime',  width: 130,            editable: false, sortable: true, filter: true },
+  { headerName: 'First Name',      field: 'fullName',     flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
+  { headerName: 'Phone Number',    field: 'phoneNumber',  width: 150,            editable: false, filter: true },
+  { headerName: 'Email Address',   field: 'email',        flex: 1, minWidth: 180, editable: false, filter: true },
+  { headerName: 'Reason',          field: 'joiningPlan',  flex: 1, minWidth: 140, editable: false, sortable: true, filter: true },
+  STATUS_COL,
+  {
+    headerName: 'Remarks',
+    field: 'Comments',
+    flex: 2,
+    minWidth: 200,
+    editable: true,
+    filter: true,
+    cellEditor: 'agTextCellEditor',
+    cellStyle: { color: '#374151' },
+    headerClass: 'editable-col-header',
+  },
+  { headerName: 'Transfer Branch', field: 'address',      width: 160, editable: false, sortable: true, filter: true },
+];
+
+export default function LeadsTable({ leads, loading, search, dashboardId, onUpdate }: Props) {
   const gridRef = useRef<AgGridReact>(null);
   const [savingRow, setSavingRow] = useState<number | null>(null);
+
+  const isWebsite = dashboardId === 'website-leads';
 
   const filtered = useMemo(() => {
     if (!search.trim()) return leads;
@@ -51,6 +111,7 @@ export default function LeadsTable({ leads, loading, search, onUpdate }: Props) 
       (l) =>
         l.fullName.toLowerCase().includes(q) ||
         l.phoneNumber.toLowerCase().includes(q) ||
+        (l.email ?? '').toLowerCase().includes(q) ||
         l.address.toLowerCase().includes(q) ||
         l.campaignName.toLowerCase().includes(q) ||
         l.Status.toLowerCase().includes(q) ||
@@ -58,90 +119,9 @@ export default function LeadsTable({ leads, loading, search, onUpdate }: Props) 
     );
   }, [leads, search]);
 
-  const columnDefs: ColDef<Lead>[] = useMemo(
-    () => [
-      {
-        headerName: 'Created Time',
-        field: 'createdTime',
-        width: 150,
-        editable: false,
-        sortable: true,
-        filter: true,
-      },
-      {
-        headerName: 'Campaign',
-        field: 'campaignName',
-        width: 140,
-        editable: false,
-        sortable: true,
-        filter: true,
-      },
-      {
-        headerName: 'Joining Plan',
-        field: 'joiningPlan',
-        width: 120,
-        editable: false,
-        sortable: true,
-        filter: true,
-      },
-      {
-        headerName: 'Membership',
-        field: 'membershipInterest',
-        width: 130,
-        editable: false,
-        sortable: true,
-        filter: true,
-      },
-      {
-        headerName: 'Full Name',
-        field: 'fullName',
-        flex: 1,
-        minWidth: 140,
-        editable: false,
-        sortable: true,
-        filter: true,
-      },
-      {
-        headerName: 'Phone',
-        field: 'phoneNumber',
-        width: 130,
-        editable: false,
-        filter: true,
-      },
-      {
-        headerName: 'Address',
-        field: 'address',
-        flex: 1,
-        minWidth: 160,
-        editable: false,
-        filter: true,
-      },
-      {
-        headerName: 'Status',
-        field: 'Status',
-        width: 145,
-        editable: true,
-        sortable: true,
-        filter: true,
-        cellEditor: 'agSelectCellEditor',
-        cellEditorParams: { values: STATUS_OPTIONS },
-        cellRenderer: (params: { value: string }) => <StatusBadge value={params.value} />,
-        cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
-        headerClass: 'editable-col-header',
-      },
-      {
-        headerName: 'Comments',
-        field: 'Comments',
-        flex: 2,
-        minWidth: 200,
-        editable: true,
-        filter: true,
-        cellEditor: 'agTextCellEditor',
-        cellStyle: { color: '#374151' },
-        headerClass: 'editable-col-header',
-      },
-    ],
-    []
+  const columnDefs = useMemo(
+    () => (isWebsite ? WEBSITE_COLUMNS : META_COLUMNS),
+    [isWebsite]
   );
 
   const defaultColDef: ColDef = useMemo(

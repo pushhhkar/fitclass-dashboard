@@ -71,6 +71,7 @@ export default function Dashboard() {
           loading={loading}
           search={search}
           onUpdate={updateLead}
+          dashboardId={activeDashboard.id}
         />
       </div>
     </div>

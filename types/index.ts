@@ -14,6 +14,7 @@ export interface Lead {
   membershipInterest: string;
   fullName: string;
   phoneNumber: string;
+  email: string;
   address: string;
   Status: LeadStatus | string;
   Comments: string;

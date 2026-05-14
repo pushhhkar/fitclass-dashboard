@@ -30,15 +30,21 @@ export const DASHBOARDS: Dashboard[] = [
     id: 'website-leads',
     name: 'Website Leads',
     branches: [
-      { id: 'website-leads', name: 'Website Leads', sheetName: 'Sheet1' },
+      { id: 'gurgaon-sector-69',  name: 'Gurgaon Sector 69',  sheetName: 'Gurgaon Sector 69' },
+      { id: 'greater-noida',      name: 'Greater Noida',      sheetName: 'Greater Noida' },
+      { id: 'gurgaon-sector-104', name: 'Gurgaon Sector 104', sheetName: 'Gurgaon Sector 104' },
+      { id: 'ashok-vihar',        name: 'Ashok Vihar',        sheetName: 'Ashok Vihar' },
+      { id: 'gurgaon-sector-7',   name: 'Gurgaon Sector 7',   sheetName: 'Gurgaon Sector 7' },
+      { id: 'dehradun',           name: 'Dehradun',           sheetName: 'Dehradun' },
+      { id: 'ramesh-nagar',       name: 'Ramesh Nagar',       sheetName: 'Ramesh Nagar' },
     ],
   },
 ];
 
-// Column indices in the master spreadsheet (0-based, after the header row).
-// Header row: Created Time | Campaign Name | Joining Plan | Membership Interest
-//           | Full Name | Phone Number | Address | Status | Comments
-export const SHEET_COLUMNS = {
+// Meta Leads column layout (0-based):
+// Created Time | Campaign Name | Joining Plan | Membership Interest
+// | Full Name | Phone Number | Address | Status | Comments
+export const META_SHEET_COLUMNS = {
   createdTime: 0,
   campaignName: 1,
   joiningPlan: 2,
@@ -50,8 +56,27 @@ export const SHEET_COLUMNS = {
   Comments: 8,
 } as const;
 
-// Range covers all 9 columns (A–I)
+// Keep SHEET_COLUMNS as an alias so nothing else breaks
+export const SHEET_COLUMNS = META_SHEET_COLUMNS;
+
+// Meta range: A–I (9 columns)
 export const SHEET_DATA_RANGE = 'A2:I';
+
+// Website Leads column layout (0-based):
+// Date | First Name | Phone Number | Email Address | Reason | Status | Remarks | Transfer Branch
+export const WEBSITE_SHEET_COLUMNS = {
+  createdTime: 0,
+  fullName: 1,
+  phoneNumber: 2,
+  email: 3,
+  reason: 4,
+  Status: 5,
+  Comments: 6,
+  branch: 7,
+} as const;
+
+// Website range: A–H (8 columns)
+export const WEBSITE_DATA_RANGE = 'A2:H';
 
 export const STATUS_OPTIONS = [
   'New',

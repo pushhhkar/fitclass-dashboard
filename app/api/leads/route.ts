@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const spreadsheetId = getSpreadsheetId(dashboardId);
-    const leads = await fetchLeads(spreadsheetId, sheetName);
+    const leads = await fetchLeads(spreadsheetId, sheetName, dashboardId);
     return NextResponse.json(leads);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
