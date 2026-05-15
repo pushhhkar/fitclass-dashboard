@@ -48,7 +48,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full min-w-0 bg-[#F8FAFC]">
+    <div className="flex flex-col min-h-full sm:h-full min-w-0 bg-[#F8FAFC]">
       <Navbar
         dashboards={DASHBOARDS}
         activeDashboard={activeDashboard}
@@ -72,32 +72,34 @@ export default function Dashboard() {
 
       <StatsCards stats={stats} leads={leads} />
 
-      <div className="px-4 sm:px-6 pb-6 flex-1 min-w-0 flex flex-col">
-        <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm flex flex-col flex-1 overflow-hidden">
-
-          {/* Toolbar */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-5 py-3 border-b border-[#F1F5F9]">
-            <div className="flex items-center gap-2.5">
-              <span className="text-sm font-semibold text-[#0F172A]">
-                {activeBranch?.name ?? '—'}
+      {/* Toolbar — sticky on mobile so search stays accessible while scrolling */}
+      <div className="sticky top-16 z-20 bg-white border-b border-[#F1F5F9] sm:static sm:bg-transparent sm:border-0 sm:z-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-semibold text-[#0F172A]">
+              {activeBranch?.name ?? '—'}
+            </span>
+            {!loading && activeBranch && (
+              <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium tabular-nums">
+                {leads.length} total
               </span>
-              {!loading && activeBranch && (
-                <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium tabular-nums">
-                  {leads.length} total
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              {error && (
-                <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 text-center">
-                  {error}
-                </span>
-              )}
-              <SearchBar value={search} onChange={setSearch} />
-            </div>
+            )}
           </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {error && (
+              <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 text-center">
+                {error}
+              </span>
+            )}
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+        </div>
+      </div>
 
-          <div className="flex-1 relative overflow-x-auto">
+      {/* Mobile: natural page scroll over card list; Desktop: fixed-height grid container */}
+      <div className="sm:px-6 sm:pb-6 sm:flex-1 sm:min-w-0 sm:flex sm:flex-col">
+        <div className="sm:bg-white sm:border sm:border-[#E2E8F0] sm:rounded-xl sm:shadow-sm sm:flex sm:flex-col sm:flex-1 sm:overflow-hidden">
+          <div className="sm:flex-1 sm:relative sm:overflow-x-auto">
             <LeadsTable
               leads={leads}
               loading={loading || (!activeBranch && !branchesLoading)}

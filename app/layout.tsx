@@ -13,7 +13,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-[#F8FAFC] min-h-screen flex flex-col`} suppressHydrationWarning>
-        <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+        {/* Mobile: natural page scroll. Desktop: clipped so AG Grid stays in viewport. */}
+        <main className="flex-1 flex flex-col overflow-y-auto sm:overflow-hidden">{children}</main>
       </body>
     </html>
   );

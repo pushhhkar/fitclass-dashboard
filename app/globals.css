@@ -40,7 +40,7 @@ body {
   background: rgba(100, 116, 139, 0.6);
 }
 
-/* New lead row flash animation */
+/* New lead row flash animation — desktop AG Grid */
 @keyframes new-lead-flash {
   0%   { background-color: #DBEAFE; }
   60%  { background-color: #DBEAFE; }
@@ -48,6 +48,13 @@ body {
 }
 .ag-row.new-lead-row {
   animation: new-lead-flash 3s ease-out forwards;
+}
+
+/* Mobile bottom-sheet safe area padding */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-sheet-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
 }
 
 /* Hide scrollbar utility */
