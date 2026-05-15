@@ -35,7 +35,7 @@ export function useBranches(dashboardId: string): UseBranchesReturn {
   const fetchBranches = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/branches?dashboardId=${encodeURIComponent(dashboardIdRef.current)}`);
+      const res = await fetch(`/api/branches?dashboardId=${encodeURIComponent(dashboardIdRef.current)}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const tabs: string[] = await res.json();
       setBranches(tabs.map(tabToBranch));

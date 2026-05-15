@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchLeads } from '@/lib/sheets';
+import { fetchLeads, fetchSheetHeaders } from '@/lib/sheets';
 import { getSpreadsheetId } from '@/lib/dashboard-secrets';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +14,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const spreadsheetId = getSpreadsheetId(dashboardId);
-    const leads = await fetchLeads(spreadsheetId, sheetName, dashboardId);
-    return NextResponse.json(leads);
+
+    // For website-leads, fetch the header row in parallel with data
+    const isWebsite = dashboardId === 'website-leads';
+    const [leads, headers] = await Promise.all([
+      fetchLeads(spreadsheetId, sheetName, dashboardId),
+      isWebsite ? fetchSheetHeaders(spreadsheetId, sheetName) : Promise.resolve([] as string[]),
+    ]);
+
+    return NextResponse.json({ leads, headers });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[GET /api/leads] dashboardId=%s sheet=%s error=%s', dashboardId, sheetName, message);

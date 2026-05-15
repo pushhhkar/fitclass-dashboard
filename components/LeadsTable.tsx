@@ -25,6 +25,7 @@ interface Props {
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
   onTransfer: (lead: Lead, targetSheetName: string) => Promise<void>;
   newLeadRowKeys: Set<string>;
+  websiteHeaders: string[];
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -232,20 +233,24 @@ function buildMetaColumns(
 
 // Website Leads: A=Date, B=Name, C=Phone, D=Email, E=Reason,
 //                F=Selected Branch, G=Status, H=Remarks, I=Transfer To
+// headerName values come from Google Sheets row 1 at runtime; fallbacks used before headers load.
 function buildWebsiteColumns(
   allBranches: DynamicBranch[],
   activeBranchName: string,
-  onTransfer: (lead: Lead, target: string) => Promise<void>
+  onTransfer: (lead: Lead, target: string) => Promise<void>,
+  headers: string[]
 ): ColDef<Lead>[] {
+  const h = (i: number, fallback: string) => headers[i] || fallback;
+  const statusCol = makeStatusCol();
   return [
-    { headerName: 'Date',            field: 'createdTime', width: 120,            editable: false, sortable: true, filter: true },
-    { headerName: 'Name',            field: 'fullName',    flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
-    { headerName: 'Phone Number',    field: 'phoneNumber', width: 140,            editable: false, filter: true },
-    { headerName: 'Email Address',   field: 'email',       flex: 1, minWidth: 180, editable: false, filter: true },
-    { headerName: 'Reason',          field: 'reason',      flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
-    { headerName: 'Selected Branch', field: 'address',     width: 150,            editable: false, sortable: true, filter: true },
-    makeStatusCol(),
-    makeCommentsCol('Remarks'),
+    { headerName: h(0, 'Date'),            field: 'createdTime', width: 120,            editable: false, sortable: true, filter: true },
+    { headerName: h(1, 'Name'),            field: 'fullName',    flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
+    { headerName: h(2, 'Phone Number'),    field: 'phoneNumber', width: 140,            editable: false, filter: true },
+    { headerName: h(3, 'Email Address'),   field: 'email',       flex: 1, minWidth: 180, editable: false, filter: true },
+    { headerName: h(4, 'Reason'),          field: 'reason',      flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
+    { headerName: h(5, 'Selected Branch'), field: 'address',     width: 150,            editable: false, sortable: true, filter: true },
+    { ...statusCol, headerName: h(6, statusCol.headerName as string) },
+    makeCommentsCol(h(7, 'Remarks')),
     makeTransferCol(allBranches, activeBranchName, onTransfer),
   ];
 }
@@ -254,7 +259,7 @@ function buildWebsiteColumns(
 export default function LeadsTable({
   leads, loading, search, dashboardId,
   allBranches, activeBranchName,
-  newLeadRowKeys,
+  newLeadRowKeys, websiteHeaders,
   onUpdate, onTransfer,
 }: Props) {
   const gridRef = useRef<AgGridReact>(null);
@@ -277,12 +282,12 @@ export default function LeadsTable({
     );
   }, [leads, search]);
 
-  // Rebuild column defs when branch list changes (Transfer To dropdown needs latest list)
+  // Rebuild column defs when branch list or dynamic headers change
   const columnDefs = useMemo(
     () => isWebsite
-      ? buildWebsiteColumns(allBranches, activeBranchName, onTransfer)
+      ? buildWebsiteColumns(allBranches, activeBranchName, onTransfer, websiteHeaders)
       : buildMetaColumns(allBranches, activeBranchName, onTransfer),
-    [isWebsite, allBranches, activeBranchName, onTransfer]
+    [isWebsite, allBranches, activeBranchName, onTransfer, websiteHeaders]
   );
 
   const defaultColDef: ColDef = useMemo(() => ({

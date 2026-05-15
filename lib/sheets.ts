@@ -35,6 +35,20 @@ function columnLetter(index: number): string {
   return letter;
 }
 
+// ── Header row discovery ──────────────────────────────────────────────────────
+export async function fetchSheetHeaders(
+  spreadsheetId: string,
+  sheetName: string
+): Promise<string[]> {
+  if (!spreadsheetId) throw new Error('spreadsheetId is required');
+  const sheets = getSheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: sheetRange(sheetName, 'A1:Z1'),
+  });
+  return (res.data.values?.[0] ?? []).map((v) => String(v).trim()).filter(Boolean);
+}
+
 // ── Tab discovery ─────────────────────────────────────────────────────────────
 export async function fetchTabNames(spreadsheetId: string): Promise<string[]> {
   if (!spreadsheetId) throw new Error('spreadsheetId is required');
@@ -43,9 +57,14 @@ export async function fetchTabNames(spreadsheetId: string): Promise<string[]> {
     spreadsheetId,
     fields: 'sheets.properties.title',
   });
+  const seen = new Set<string>();
   return (res.data.sheets ?? [])
     .map((s) => s.properties?.title ?? '')
-    .filter(Boolean);
+    .filter((title) => {
+      if (!title || seen.has(title)) return false;
+      seen.add(title);
+      return true;
+    });
 }
 
 // ── Fetch leads ───────────────────────────────────────────────────────────────

@@ -60,6 +60,7 @@ interface UseLeadsReturn {
   stats: StatsData;
   loading: boolean;
   error: string | null;
+  websiteHeaders: string[];  // dynamic sheet headers for website-leads (empty for meta-leads)
   newLeadCount: number;
   newLeadRowKeys: Set<string>;
   clearNewLeadCount: () => void;
@@ -72,6 +73,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
+  const [websiteHeaders, setWebsiteHeaders] = useState<string[]>([]);
   const [newLeadCount, setNewLeadCount] = useState(0);
   const [newLeadRowKeys, setNewLeadRowKeys] = useState<Set<string>>(new Set());
 
@@ -98,10 +100,12 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
         dashboardId: dashboardIdRef.current,
         sheet:       sheetNameRef.current,
       });
-      const res = await fetch(`/api/leads?${params}`);
+      const res = await fetch(`/api/leads?${params}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const raw: Lead[] = await res.json();
+      const json: { leads: Lead[]; headers: string[] } = await res.json();
+      const raw = json.leads ?? [];
+      if (json.headers?.length) setWebsiteHeaders(json.headers);
       const sorted = sortNewestFirst(raw);
 
       if (silent && !isFirstFetch.current) {
@@ -154,6 +158,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
     setLeads([]);
     setLoading(true);
     setLastUpdated(null);
+    setWebsiteHeaders([]);
     setNewLeadCount(0);
     setNewLeadRowKeys(new Set());
     isFirstFetch.current = true;
@@ -225,6 +230,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
     stats: { total: leads.length, lastUpdated },
     loading,
     error,
+    websiteHeaders,
     newLeadCount,
     newLeadRowKeys,
     clearNewLeadCount,
