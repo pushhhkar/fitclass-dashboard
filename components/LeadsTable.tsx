@@ -402,12 +402,7 @@ function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchNam
             <span className="text-sm text-[#0F172A]">{lead.address}</span>
           </div>
         )}
-        {isWebsite && lead.email && (
-          <div className="flex items-start gap-2">
-            <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide w-20 shrink-0 pt-0.5">{websiteHeaders[3] || 'Email'}</span>
-            <span className="text-sm text-[#475569] break-all">{lead.email}</span>
-          </div>
-        )}
+        {/* Email hidden on mobile — too long, causes overflow */}
         {isWebsite && lead.reason && (
           <div className="flex items-start gap-2">
             <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide w-20 shrink-0 pt-0.5">{websiteHeaders[4] || 'Reason'}</span>
