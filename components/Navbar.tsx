@@ -6,13 +6,22 @@ import type { Dashboard } from '@/lib/config';
 interface Props {
   dashboards: Dashboard[];
   activeDashboard: Dashboard;
+  newLeadCount: number;
   onDashboardChange: (dashboard: Dashboard) => void;
+  onClearNotifications: () => void;
 }
 
-export default function Navbar({ dashboards, activeDashboard, onDashboardChange }: Props) {
+export default function Navbar({
+  dashboards,
+  activeDashboard,
+  newLeadCount,
+  onDashboardChange,
+  onClearNotifications,
+}: Props) {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-[#E2E8F0] shadow-sm">
       <div className="flex items-center h-16 pl-2 pr-4 sm:pr-6 gap-3 sm:gap-4">
+
         {/* Logo + title */}
         <div className="flex items-center gap-3 shrink-0">
           <Image
@@ -44,11 +53,25 @@ export default function Navbar({ dashboards, activeDashboard, onDashboardChange 
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
-          {/* Chevron icon */}
           <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* New lead notification badge */}
+        {newLeadCount > 0 && (
+          <button
+            onClick={onClearNotifications}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] text-xs font-semibold hover:bg-[#DBEAFE] transition-colors"
+            title="Clear new lead notifications"
+          >
+            <span className="w-2 h-2 rounded-full bg-[#2563EB] animate-pulse" />
+            {newLeadCount} new {newLeadCount === 1 ? 'lead' : 'leads'}
+          </button>
+        )}
       </div>
     </header>
   );

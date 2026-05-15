@@ -21,11 +21,59 @@ body {
   overflow: hidden;
 }
 
-/* Hide scrollbar on tab strip */
+/* AG Grid horizontal scrollbar — premium thin styling */
+.ag-body-horizontal-scroll::-webkit-scrollbar,
+.ag-center-cols-viewport::-webkit-scrollbar {
+  height: 4px;
+}
+.ag-body-horizontal-scroll::-webkit-scrollbar-track,
+.ag-center-cols-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ag-body-horizontal-scroll::-webkit-scrollbar-thumb,
+.ag-center-cols-viewport::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+}
+.ag-body-horizontal-scroll::-webkit-scrollbar-thumb:hover,
+.ag-center-cols-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* New lead row flash animation */
+@keyframes new-lead-flash {
+  0%   { background-color: #DBEAFE; }
+  60%  { background-color: #DBEAFE; }
+  100% { background-color: transparent; }
+}
+.ag-row.new-lead-row {
+  animation: new-lead-flash 3s ease-out forwards;
+}
+
+/* Hide scrollbar utility */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Premium thin scrollbar for tab strip */
+.tabs-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+.tabs-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+.tabs-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.tabs-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+}
+.tabs-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
 }

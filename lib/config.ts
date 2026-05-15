@@ -1,82 +1,54 @@
-// Client-safe config — NO spreadsheetIds here (env vars without NEXT_PUBLIC_ are
-// undefined in the browser bundle). Secrets live in lib/dashboard-secrets.ts.
-export interface DashboardBranch {
-  id: string;
-  name: string;
-  sheetName: string;
-}
+// Client-safe config — NO spreadsheetIds here.
+// Secrets live in lib/dashboard-secrets.ts.
 
 export interface Dashboard {
   id: string;
   name: string;
-  branches: DashboardBranch[];
 }
 
+// Dashboards — branches/tabs are fetched dynamically from Google Sheets.
+// Adding a new spreadsheet tab requires no code change.
 export const DASHBOARDS: Dashboard[] = [
-  {
-    id: 'meta-leads',
-    name: 'Meta Leads',
-    branches: [
-      { id: 'sec-69',        name: 'Sec 69',        sheetName: 'Sec 69' },
-      { id: 'sec-57',        name: 'Sec 57',        sheetName: 'Sec 57' },
-      { id: 'sec-83',        name: 'Sec 83',        sheetName: 'Sec 83' },
-      { id: 'sec-104',       name: 'Sec 104',       sheetName: 'Sec 104' },
-      { id: 'sec-37',        name: 'Sec 37',        sheetName: 'Sec 37' },
-      { id: 'ramesh-ngr',    name: 'Ramesh Ngr',    sheetName: 'Ramesh Ngr' },
-      { id: 'greater-noida', name: 'Greater Noida', sheetName: 'Greater Noida' },
-    ],
-  },
-  {
-    id: 'website-leads',
-    name: 'Website Leads',
-    branches: [
-      { id: 'gurgaon-sector-69',  name: 'Gurgaon Sector 69',  sheetName: 'Gurgaon Sector 69' },
-      { id: 'greater-noida',      name: 'Greater Noida',      sheetName: 'Greater Noida' },
-      { id: 'gurgaon-sector-104', name: 'Gurgaon Sector 104', sheetName: 'Gurgaon Sector 104' },
-      { id: 'ashok-vihar',        name: 'Ashok Vihar',        sheetName: 'Ashok Vihar' },
-      { id: 'gurgaon-sector-7',   name: 'Gurgaon Sector 7',   sheetName: 'Gurgaon Sector 7' },
-      { id: 'dehradun',           name: 'Dehradun',           sheetName: 'Dehradun' },
-      { id: 'ramesh-nagar',       name: 'Ramesh Nagar',       sheetName: 'Ramesh Nagar' },
-    ],
-  },
+  { id: 'meta-leads',    name: 'Meta Leads' },
+  { id: 'website-leads', name: 'Website Leads' },
 ];
 
-// Meta Leads column layout (0-based):
-// Created Time | Campaign Name | Joining Plan | Membership Interest
-// | Full Name | Phone Number | Address | Status | Comments
-export const META_SHEET_COLUMNS = {
-  createdTime: 0,
-  campaignName: 1,
-  joiningPlan: 2,
-  membershipInterest: 3,
-  fullName: 4,
-  phoneNumber: 5,
-  address: 6,
-  Status: 7,
-  Comments: 8,
+// ── Meta Leads column layout (0-based, A=0 … K=10) ──────────────────────────
+// A=Date, B=Campaign, C=Name, D=Phone, E=Address,
+// F=Plan Selected, G=Membership Selected, H=Primary Fitness Goal,
+// I=Status, J=Remarks, K=Transfer To
+export const META_COLUMNS = {
+  createdTime:        0,  // A
+  campaignName:       1,  // B
+  fullName:           2,  // C
+  phoneNumber:        3,  // D
+  address:            4,  // E
+  joiningPlan:        5,  // F
+  membershipInterest: 6,  // G
+  fitnessGoal:        7,  // H
+  Status:             8,  // I
+  Comments:           9,  // J
+  transferTo:         10, // K
 } as const;
 
-// Keep SHEET_COLUMNS as an alias so nothing else breaks
-export const SHEET_COLUMNS = META_SHEET_COLUMNS;
+export const META_DATA_RANGE = 'A2:K';
 
-// Meta range: A–I (9 columns)
-export const SHEET_DATA_RANGE = 'A2:I';
-
-// Website Leads column layout (0-based):
-// Date | First Name | Phone Number | Email Address | Reason | Status | Remarks | Transfer Branch
-export const WEBSITE_SHEET_COLUMNS = {
-  createdTime: 0,
-  fullName: 1,
-  phoneNumber: 2,
-  email: 3,
-  reason: 4,
-  Status: 5,
-  Comments: 6,
-  branch: 7,
+// ── Website Leads column layout (0-based, A=0 … I=8) ────────────────────────
+// A=Date, B=Name, C=Phone, D=Email, E=Reason,
+// F=Selected Branch, G=Status, H=Remarks, I=Transfer To
+export const WEBSITE_COLUMNS = {
+  createdTime: 0,  // A
+  fullName:    1,  // B
+  phoneNumber: 2,  // C
+  email:       3,  // D
+  reason:      4,  // E
+  address:     5,  // F  (Selected Branch → address field)
+  Status:      6,  // G
+  Comments:    7,  // H
+  transferTo:  8,  // I
 } as const;
 
-// Website range: A–H (8 columns)
-export const WEBSITE_DATA_RANGE = 'A2:H';
+export const WEBSITE_DATA_RANGE = 'A2:I';
 
 export const STATUS_OPTIONS = [
   'New',
@@ -86,6 +58,3 @@ export const STATUS_OPTIONS = [
   'Converted',
   'Follow Up',
 ] as const;
-
-export const POLL_INTERVAL_MS =
-  Number(process.env.NEXT_PUBLIC_POLL_INTERVAL_MS) || 15000;

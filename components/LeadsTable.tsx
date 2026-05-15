@@ -2,9 +2,15 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { ColDef, GridReadyEvent, CellValueChangedEvent } from 'ag-grid-community';
+import type {
+  ColDef,
+  GridReadyEvent,
+  CellValueChangedEvent,
+  ICellRendererParams,
+} from 'ag-grid-community';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { Lead, UpdatePayload } from '@/types';
+import type { DynamicBranch } from '@/hooks/useBranches';
 import { STATUS_OPTIONS } from '@/lib/config';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -14,10 +20,14 @@ interface Props {
   loading: boolean;
   search: string;
   dashboardId: string;
+  allBranches: DynamicBranch[];
+  activeBranchName: string;
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
+  onTransfer: (lead: Lead, targetSheetName: string) => Promise<void>;
+  newLeadRowKeys: Set<string>;
 }
 
-// ── status badge ─────────────────────────────────────────────────────────────
+// ── Status badge ──────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { bg: string; color: string; dot: string }> = {
   New:              { bg: '#EFF6FF', color: '#1D4ED8', dot: '#3B82F6' },
   Contacted:        { bg: '#FFFBEB', color: '#92400E', dot: '#F59E0B' },
@@ -28,73 +38,71 @@ const STATUS_CONFIG: Record<string, { bg: string; color: string; dot: string }> 
 };
 
 function StatusBadge({ value }: { value: string }) {
-  const cfg = STATUS_CONFIG[value];
+  const cfg   = STATUS_CONFIG[value];
   const bg    = cfg?.bg    ?? '#F1F5F9';
   const color = cfg?.color ?? '#475569';
   const dot   = cfg?.dot   ?? '#94A3B8';
   return (
-    <span
-      style={{ background: bg, color }}
-      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold"
-    >
+    <span style={{ background: bg, color }}
+      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold">
       <span style={{ background: dot }} className="w-1.5 h-1.5 rounded-full shrink-0" />
       {value || '—'}
     </span>
   );
 }
 
-// ── shared editable columns ──────────────────────────────────────────────────
-const STATUS_COL: ColDef<Lead> = {
-  headerName: 'Status',
-  field: 'Status',
-  width: 160,
-  editable: true,
-  sortable: true,
-  filter: true,
-  cellEditor: 'agSelectCellEditor',
-  cellEditorParams: { values: STATUS_OPTIONS },
-  cellRenderer: (params: { value: string }) => <StatusBadge value={params.value} />,
-  cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
-  headerClass: 'editable-col-header',
-};
-
-function commentsCol(headerName: string): ColDef<Lead> {
-  return {
-    headerName,
-    field: 'Comments',
-    flex: 2,
-    minWidth: 200,
-    editable: true,
-    filter: true,
-    cellEditor: 'agTextCellEditor',
-    cellStyle: { color: '#475569' },
-    headerClass: 'editable-col-header',
-  };
+// ── Transfer To cell renderer ─────────────────────────────────────────────────
+interface TransferRendererProps extends ICellRendererParams<Lead> {
+  allBranches: DynamicBranch[];
+  activeBranchName: string;
+  onTransfer: (lead: Lead, targetSheetName: string) => Promise<void>;
 }
 
-// ── column sets ───────────────────────────────────────────────────────────────
-const META_COLUMNS: ColDef<Lead>[] = [
-  { headerName: 'Created Time',  field: 'createdTime',        width: 150, editable: false, sortable: true, filter: true },
-  { headerName: 'Campaign',      field: 'campaignName',       width: 140, editable: false, sortable: true, filter: true },
-  { headerName: 'Joining Plan',  field: 'joiningPlan',        width: 130, editable: false, sortable: true, filter: true },
-  { headerName: 'Membership',    field: 'membershipInterest', width: 130, editable: false, sortable: true, filter: true },
-  { headerName: 'Full Name',     field: 'fullName',           flex: 1, minWidth: 140, editable: false, sortable: true, filter: true },
-  { headerName: 'Phone',         field: 'phoneNumber',        width: 130, editable: false, filter: true },
-  { headerName: 'Address',       field: 'address',            flex: 1, minWidth: 160, editable: false, filter: true },
-  STATUS_COL,
-  commentsCol('Comments'),
-];
+function TransferCellRenderer({ value, data, allBranches, activeBranchName, onTransfer }: TransferRendererProps) {
+  // localDest is set immediately on success so the cell flips to read-only
+  // before AG Grid re-renders the row from updated rowData.
+  const [localDest, setLocalDest] = useState<string>(value ?? '');
+  const [busy, setBusy] = useState(false);
 
-const WEBSITE_COLUMNS: ColDef<Lead>[] = [
-  { headerName: 'Date',            field: 'createdTime',  width: 130,             editable: false, sortable: true, filter: true },
-  { headerName: 'First Name',      field: 'fullName',     flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
-  { headerName: 'Phone Number',    field: 'phoneNumber',  width: 150,             editable: false, filter: true },
-  { headerName: 'Email Address',   field: 'email',        flex: 1, minWidth: 180, editable: false, filter: true },
-  { headerName: 'Reason',          field: 'joiningPlan',  flex: 1, minWidth: 140, editable: false, sortable: true, filter: true },
-  STATUS_COL,
-  commentsCol('Remarks'),
-  { headerName: 'Transfer Branch', field: 'address',      width: 160, editable: false, sortable: true, filter: true },
-];
+  if (!data) return null;
+
+  const transferred = localDest || value;
+
+  if (transferred) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EFF6FF] text-[#1D4ED8]">
+        {transferred}
+      </span>
+    );
+  }
+
+  const otherBranches = allBranches.filter((b) => b.sheetName !== activeBranchName);
+  if (otherBranches.length === 0) return <span className="text-xs text-[#94A3B8]">—</span>;
+
+  return (
+    <select
+      value=""
+      disabled={busy}
+      onChange={async (e) => {
+        const target = e.target.value;
+        if (!target) return;
+        setBusy(true);
+        try {
+          await onTransfer(data, target);
+          setLocalDest(target); // flip to read-only immediately
+        } catch {
+          setBusy(false);
+        }
+      }}
+      className="text-xs text-[#0F172A] bg-white border border-[#E2E8F0] rounded-md px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-[#0A6BA8] cursor-pointer max-w-[140px] disabled:opacity-50"
+    >
+      <option value="">Transfer to…</option>
+      {otherBranches.map((b) => (
+        <option key={b.id} value={b.sheetName}>{b.name}</option>
+      ))}
+    </select>
+  );
+}
 
 // ── AG Grid CSS ───────────────────────────────────────────────────────────────
 const GRID_STYLES = `
@@ -143,13 +151,112 @@ const GRID_STYLES = `
     background: #F8FAFC;
     padding: 8px 16px;
   }
-  .ag-theme-alpine .ag-paging-button button {
-    border-radius: 6px;
-  }
 `;
 
-// ── component ─────────────────────────────────────────────────────────────────
-export default function LeadsTable({ leads, loading, search, dashboardId, onUpdate }: Props) {
+// ── Column definitions ────────────────────────────────────────────────────────
+function makeStatusCol(): ColDef<Lead> {
+  return {
+    headerName: 'Status',
+    field: 'Status',
+    width: 160,
+    editable: true,
+    sortable: true,
+    filter: true,
+    cellEditor: 'agSelectCellEditor',
+    cellEditorParams: { values: STATUS_OPTIONS },
+    cellRenderer: (p: { value: string }) => <StatusBadge value={p.value} />,
+    cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
+    headerClass: 'editable-col-header',
+  };
+}
+
+function makeCommentsCol(headerName: string): ColDef<Lead> {
+  return {
+    headerName,
+    field: 'Comments',
+    flex: 2,
+    minWidth: 180,
+    editable: true,
+    filter: true,
+    cellEditor: 'agTextCellEditor',
+    cellStyle: { color: '#475569' },
+    headerClass: 'editable-col-header',
+  };
+}
+
+function makeTransferCol(
+  allBranches: DynamicBranch[],
+  activeBranchName: string,
+  onTransfer: (lead: Lead, target: string) => Promise<void>
+): ColDef<Lead> {
+  return {
+    headerName: 'Transfer To',
+    field: 'transferTo',
+    width: 170,
+    editable: false,
+    sortable: false,
+    filter: false,
+    cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
+    cellRenderer: (p: ICellRendererParams<Lead>) => (
+      <TransferCellRenderer
+        {...p}
+        allBranches={allBranches}
+        activeBranchName={activeBranchName}
+        onTransfer={onTransfer}
+      />
+    ),
+  };
+}
+
+// Meta Leads: A=Date, B=Campaign, C=Name, D=Phone, E=Address,
+//             F=Plan Selected, G=Membership, H=Fitness Goal, I=Status, J=Remarks, K=Transfer To
+function buildMetaColumns(
+  allBranches: DynamicBranch[],
+  activeBranchName: string,
+  onTransfer: (lead: Lead, target: string) => Promise<void>
+): ColDef<Lead>[] {
+  return [
+    { headerName: 'Date',                field: 'createdTime',        width: 120, editable: false, sortable: true, filter: true },
+    { headerName: 'Campaign',            field: 'campaignName',       width: 130, editable: false, sortable: true, filter: true },
+    { headerName: 'Name',                field: 'fullName',           flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
+    { headerName: 'Phone Number',        field: 'phoneNumber',        width: 130, editable: false, filter: true },
+    { headerName: 'Address',             field: 'address',            flex: 1, minWidth: 140, editable: false, filter: true },
+    { headerName: 'Plan Selected',       field: 'joiningPlan',        width: 130, editable: false, sortable: true, filter: true },
+    { headerName: 'Membership Selected', field: 'membershipInterest', width: 155, editable: false, sortable: true, filter: true },
+    { headerName: 'Primary Fitness Goal',field: 'fitnessGoal',        width: 170, editable: false, sortable: true, filter: true },
+    makeStatusCol(),
+    makeCommentsCol('Remarks'),
+    makeTransferCol(allBranches, activeBranchName, onTransfer),
+  ];
+}
+
+// Website Leads: A=Date, B=Name, C=Phone, D=Email, E=Reason,
+//                F=Selected Branch, G=Status, H=Remarks, I=Transfer To
+function buildWebsiteColumns(
+  allBranches: DynamicBranch[],
+  activeBranchName: string,
+  onTransfer: (lead: Lead, target: string) => Promise<void>
+): ColDef<Lead>[] {
+  return [
+    { headerName: 'Date',            field: 'createdTime', width: 120,            editable: false, sortable: true, filter: true },
+    { headerName: 'Name',            field: 'fullName',    flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
+    { headerName: 'Phone Number',    field: 'phoneNumber', width: 140,            editable: false, filter: true },
+    { headerName: 'Email Address',   field: 'email',       flex: 1, minWidth: 180, editable: false, filter: true },
+    { headerName: 'Reason',          field: 'reason',      flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
+    { headerName: 'Selected Branch', field: 'address',     width: 150,            editable: false, sortable: true, filter: true },
+    makeStatusCol(),
+    makeCommentsCol('Remarks'),
+    makeTransferCol(allBranches, activeBranchName, onTransfer),
+  ];
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function LeadsTable({
+  leads, loading, search, dashboardId,
+  allBranches, activeBranchName,
+  newLeadRowKeys,
+  onUpdate, onTransfer,
+}: Props) {
   const gridRef = useRef<AgGridReact>(null);
   const [savingRow, setSavingRow] = useState<number | null>(null);
 
@@ -158,18 +265,25 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
   const filtered = useMemo(() => {
     if (!search.trim()) return leads;
     const q = search.toLowerCase();
-    return leads.filter(l =>
+    return leads.filter((l) =>
       l.fullName.toLowerCase().includes(q) ||
       l.phoneNumber.toLowerCase().includes(q) ||
       (l.email ?? '').toLowerCase().includes(q) ||
       l.address.toLowerCase().includes(q) ||
+      (l.reason ?? '').toLowerCase().includes(q) ||
       l.campaignName.toLowerCase().includes(q) ||
       l.Status.toLowerCase().includes(q) ||
       l.Comments.toLowerCase().includes(q)
     );
   }, [leads, search]);
 
-  const columnDefs = useMemo(() => isWebsite ? WEBSITE_COLUMNS : META_COLUMNS, [isWebsite]);
+  // Rebuild column defs when branch list changes (Transfer To dropdown needs latest list)
+  const columnDefs = useMemo(
+    () => isWebsite
+      ? buildWebsiteColumns(allBranches, activeBranchName, onTransfer)
+      : buildMetaColumns(allBranches, activeBranchName, onTransfer),
+    [isWebsite, allBranches, activeBranchName, onTransfer]
+  );
 
   const defaultColDef: ColDef = useMemo(() => ({
     resizable: true,
@@ -185,13 +299,23 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
 
     setSavingRow(data.rowIndex);
     try {
-      await onUpdate({ rowIndex: data.rowIndex, field: colDef.field as 'Status' | 'Comments', value: newValue ?? '' });
+      await onUpdate({
+        rowIndex: data.rowIndex,
+        field: colDef.field as 'Status' | 'Comments',
+        value: newValue ?? '',
+      });
     } finally {
       setSavingRow(null);
     }
   }, [onUpdate]);
 
   const onGridReady = useCallback((_: GridReadyEvent) => {}, []);
+
+  const getRowClass = useCallback((params: { data?: Lead }) => {
+    if (!params.data) return '';
+    const key = `${params.data.rowIndex}::${params.data.phoneNumber}::${params.data.fullName}`;
+    return newLeadRowKeys.has(key) ? 'new-lead-row' : '';
+  }, [newLeadRowKeys]);
 
   if (loading) {
     return (
@@ -206,10 +330,7 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
   }
 
   return (
-    <div
-      className="ag-theme-alpine w-full h-full"
-      style={{ minHeight: 400, minWidth: 640 }}
-    >
+    <div className="ag-theme-alpine w-full h-full" style={{ minHeight: 400, minWidth: 700 }}>
       <style>{GRID_STYLES}</style>
 
       {savingRow !== null && (
@@ -238,6 +359,7 @@ export default function LeadsTable({ leads, loading, search, dashboardId, onUpda
         suppressCellFocus={false}
         enableCellTextSelection
         getRowId={(params) => String(params.data.rowIndex)}
+        getRowClass={getRowClass}
       />
     </div>
   );
