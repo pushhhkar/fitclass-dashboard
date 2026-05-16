@@ -11,9 +11,13 @@ import type {
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { Lead, UpdatePayload } from '@/types';
 import type { DynamicBranch } from '@/hooks/useBranches';
-import { STATUS_OPTIONS } from '@/lib/config';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Fallback used only before the first API response arrives (loading state).
+// Must stay in sync with whatever is in the sheet — but the sheet is always
+// the authority once loaded. This is only shown for ~1s during initial fetch.
+const FALLBACK_STATUS_OPTIONS = ['New', 'Call Attempted', 'Not Answering', 'Call Back Later', 'Budget Issue', 'Wrong Branch', 'Location Issue', 'Not Interested', 'Job Applicant', 'Visit Scheduled', 'Membership Purchased', 'Transfer to'];
 
 interface Props {
   leads: Lead[];
@@ -26,6 +30,7 @@ interface Props {
   onTransfer: (lead: Lead, targetSheetName: string) => Promise<void>;
   newLeadRowKeys: Set<string>;
   websiteHeaders: string[];
+  statusOptions: string[];
 }
 
 // ── Breakpoint hook ───────────────────────────────────────────────────────────
@@ -43,12 +48,22 @@ function useIsMobile(): boolean {
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { bg: string; color: string; dot: string; activeBg: string; activeBorder: string }> = {
-  New:              { bg: '#EFF6FF', color: '#1D4ED8', dot: '#3B82F6', activeBg: '#DBEAFE', activeBorder: '#93C5FD' },
-  Contacted:        { bg: '#FFFBEB', color: '#92400E', dot: '#F59E0B', activeBg: '#FEF3C7', activeBorder: '#FCD34D' },
-  Interested:       { bg: '#F0FDF4', color: '#15803D', dot: '#22C55E', activeBg: '#DCFCE7', activeBorder: '#86EFAC' },
-  'Not Interested': { bg: '#FFF7ED', color: '#C2410C', dot: '#F97316', activeBg: '#FFEDD5', activeBorder: '#FDBA74' },
-  Converted:        { bg: '#FAF5FF', color: '#7E22CE', dot: '#A855F7', activeBg: '#F3E8FF', activeBorder: '#D8B4FE' },
-  'Follow Up':      { bg: '#ECFDF5', color: '#065F46', dot: '#10B981', activeBg: '#D1FAE5', activeBorder: '#6EE7B7' },
+  // New → blue
+  New:                   { bg: '#EFF6FF', color: '#1D4ED8', dot: '#3B82F6', activeBg: '#DBEAFE', activeBorder: '#93C5FD' },
+  // Call Attempted group → orange
+  'Call Attempted':      { bg: '#FFF7ED', color: '#C2410C', dot: '#F97316', activeBg: '#FFEDD5', activeBorder: '#FDBA74' },
+  'Not Answering':       { bg: '#FFF7ED', color: '#C2410C', dot: '#F97316', activeBg: '#FFEDD5', activeBorder: '#FDBA74' },
+  'Call Back Later':     { bg: '#FFFBEB', color: '#92400E', dot: '#F59E0B', activeBg: '#FEF3C7', activeBorder: '#FCD34D' },
+  // Unqualified group → red
+  'Budget Issue':        { bg: '#FEF2F2', color: '#B91C1C', dot: '#EF4444', activeBg: '#FEE2E2', activeBorder: '#FCA5A5' },
+  'Wrong Branch':        { bg: '#FEF2F2', color: '#B91C1C', dot: '#EF4444', activeBg: '#FEE2E2', activeBorder: '#FCA5A5' },
+  'Location Issue':      { bg: '#FEF2F2', color: '#B91C1C', dot: '#EF4444', activeBg: '#FEE2E2', activeBorder: '#FCA5A5' },
+  'Not Interested':      { bg: '#FEF2F2', color: '#B91C1C', dot: '#EF4444', activeBg: '#FEE2E2', activeBorder: '#FCA5A5' },
+  'Job Applicant':       { bg: '#FEF2F2', color: '#B91C1C', dot: '#EF4444', activeBg: '#FEE2E2', activeBorder: '#FCA5A5' },
+  // Visit Scheduled → purple
+  'Visit Scheduled':     { bg: '#FAF5FF', color: '#7E22CE', dot: '#A855F7', activeBg: '#F3E8FF', activeBorder: '#D8B4FE' },
+  // Converted → green
+  'Membership Purchased':{ bg: '#F0FDF4', color: '#15803D', dot: '#22C55E', activeBg: '#DCFCE7', activeBorder: '#86EFAC' },
 };
 
 function StatusBadge({ value }: { value: string }) {
@@ -110,8 +125,8 @@ function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
             </svg>
           </button>
         </div>
-        {/* Content */}
-        <div className="overflow-y-auto flex-1 px-4 py-3 pb-8">
+        {/* Content — thin scrollbar so all options are reachable */}
+        <div className="overflow-y-auto flex-1 px-4 py-3 pb-8 sheet-scroll">
           {children}
         </div>
       </div>
@@ -122,10 +137,11 @@ function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
 // ── Mobile Status Picker ──────────────────────────────────────────────────────
 interface StatusPickerProps {
   lead: Lead;
+  options: string[];
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
 }
 
-function MobileStatusPicker({ lead, onUpdate }: StatusPickerProps) {
+function MobileStatusPicker({ lead, options, onUpdate }: StatusPickerProps) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(lead.Status);
   const [saving, setSaving] = useState(false);
@@ -168,7 +184,7 @@ function MobileStatusPicker({ lead, onUpdate }: StatusPickerProps) {
 
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Update Status">
         <div className="flex flex-col gap-2">
-          {STATUS_OPTIONS.map((s) => {
+          {options.map((s) => {
             const cfg = STATUS_CONFIG[s];
             const isActive = s === current;
             return (
@@ -349,11 +365,12 @@ interface CardProps {
   allBranches: DynamicBranch[];
   activeBranchName: string;
   websiteHeaders: string[];
+  statusOptions: string[];
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
   onTransfer: (lead: Lead, targetSheetName: string) => Promise<void>;
 }
 
-function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchName, websiteHeaders, onUpdate, onTransfer }: CardProps) {
+function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchName, websiteHeaders, statusOptions, onUpdate, onTransfer }: CardProps) {
   const isWebsite = dashboardId === 'website-leads';
   const branchLabel = isWebsite
     ? (websiteHeaders[5] || 'Selected Branch')
@@ -388,7 +405,7 @@ function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchNam
           </a>
         </div>
         <div className="shrink-0 pt-0.5">
-          <MobileStatusPicker lead={lead} onUpdate={onUpdate} />
+          <MobileStatusPicker lead={lead} options={statusOptions} onUpdate={onUpdate} />
         </div>
       </div>
 
@@ -551,10 +568,40 @@ const GRID_STYLES = `
     background: #F8FAFC;
     padding: 8px 16px;
   }
+
+  /* ── Scrollbar styling — alwaysShowHorizontalScroll/alwaysShowVerticalScroll
+       props make AG Grid keep the scroll containers visible at all times.
+       These rules only style their appearance. ── */
+  .ag-theme-alpine .ag-body-viewport,
+  .ag-theme-alpine .ag-body-horizontal-scroll-viewport,
+  .ag-theme-alpine .ag-body-vertical-scroll-viewport {
+    scrollbar-width: thin;
+    scrollbar-color: #b8c2d1 #eef2f7;
+  }
+  .ag-theme-alpine .ag-body-viewport::-webkit-scrollbar,
+  .ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
+  .ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar {
+    width: 8px; height: 8px;
+  }
+  .ag-theme-alpine .ag-body-viewport::-webkit-scrollbar-track,
+  .ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track,
+  .ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-track {
+    background: #eef2f7; border-radius: 999px;
+  }
+  .ag-theme-alpine .ag-body-viewport::-webkit-scrollbar-thumb,
+  .ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
+  .ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb {
+    background: #b8c2d1; border-radius: 999px;
+  }
+  .ag-theme-alpine .ag-body-viewport::-webkit-scrollbar-thumb:hover,
+  .ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover,
+  .ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
 `;
 
 // ── Desktop column definitions ────────────────────────────────────────────────
-function makeStatusCol(): ColDef<Lead> {
+function makeStatusCol(options: string[]): ColDef<Lead> {
   return {
     headerName: 'Status',
     field: 'Status',
@@ -563,7 +610,7 @@ function makeStatusCol(): ColDef<Lead> {
     sortable: true,
     filter: true,
     cellEditor: 'agSelectCellEditor',
-    cellEditorParams: { values: STATUS_OPTIONS },
+    cellEditorParams: { values: options },
     cellRenderer: (p: { value: string }) => <StatusBadge value={p.value} />,
     cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
     headerClass: 'editable-col-header',
@@ -611,7 +658,8 @@ function makeTransferCol(
 function buildMetaColumns(
   allBranches: DynamicBranch[],
   activeBranchName: string,
-  onTransfer: (lead: Lead, target: string) => Promise<void>
+  onTransfer: (lead: Lead, target: string) => Promise<void>,
+  options: string[]
 ): ColDef<Lead>[] {
   return [
     { headerName: 'Date',                field: 'createdTime',        width: 120, editable: false, sortable: true, filter: true },
@@ -622,7 +670,7 @@ function buildMetaColumns(
     { headerName: 'Plan Selected',       field: 'joiningPlan',        width: 130, editable: false, sortable: true, filter: true },
     { headerName: 'Membership Selected', field: 'membershipInterest', width: 155, editable: false, sortable: true, filter: true },
     { headerName: 'Primary Fitness Goal',field: 'fitnessGoal',        width: 170, editable: false, sortable: true, filter: true },
-    makeStatusCol(),
+    makeStatusCol(options),
     makeCommentsCol('Remarks'),
     makeTransferCol(allBranches, activeBranchName, onTransfer),
   ];
@@ -632,10 +680,11 @@ function buildWebsiteColumns(
   allBranches: DynamicBranch[],
   activeBranchName: string,
   onTransfer: (lead: Lead, target: string) => Promise<void>,
-  headers: string[]
+  headers: string[],
+  options: string[]
 ): ColDef<Lead>[] {
   const h = (i: number, fallback: string) => headers[i] || fallback;
-  const statusCol = makeStatusCol();
+  const statusCol = makeStatusCol(options);
   return [
     { headerName: h(0, 'Date'),            field: 'createdTime', width: 120,            editable: false, sortable: true, filter: true },
     { headerName: h(1, 'Name'),            field: 'fullName',    flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
@@ -653,7 +702,7 @@ function buildWebsiteColumns(
 export default function LeadsTable({
   leads, loading, search, dashboardId,
   allBranches, activeBranchName,
-  newLeadRowKeys, websiteHeaders,
+  newLeadRowKeys, websiteHeaders, statusOptions,
   onUpdate, onTransfer,
 }: Props) {
   const gridRef = useRef<AgGridReact>(null);
@@ -661,6 +710,8 @@ export default function LeadsTable({
   const isMobile = useIsMobile();
 
   const isWebsite = dashboardId === 'website-leads';
+  // Use live options from Sheets; fall back to hardcoded list only before first fetch.
+  const resolvedOptions = statusOptions.length ? statusOptions : FALLBACK_STATUS_OPTIONS;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return leads;
@@ -679,9 +730,9 @@ export default function LeadsTable({
 
   const columnDefs = useMemo(
     () => isWebsite
-      ? buildWebsiteColumns(allBranches, activeBranchName, onTransfer, websiteHeaders)
-      : buildMetaColumns(allBranches, activeBranchName, onTransfer),
-    [isWebsite, allBranches, activeBranchName, onTransfer, websiteHeaders]
+      ? buildWebsiteColumns(allBranches, activeBranchName, onTransfer, websiteHeaders, resolvedOptions)
+      : buildMetaColumns(allBranches, activeBranchName, onTransfer, resolvedOptions),
+    [isWebsite, allBranches, activeBranchName, onTransfer, websiteHeaders, resolvedOptions]
   );
 
   const defaultColDef: ColDef = useMemo(() => ({
@@ -759,6 +810,7 @@ export default function LeadsTable({
               allBranches={allBranches}
               activeBranchName={activeBranchName}
               websiteHeaders={websiteHeaders}
+              statusOptions={resolvedOptions}
               onUpdate={onUpdate}
               onTransfer={onTransfer}
             />
@@ -769,8 +821,11 @@ export default function LeadsTable({
   }
 
   // ── Desktop AG Grid ───────────────────────────────────────────────────────
+  // The parent .dashboard-grid-card is flex:1 with minHeight:0, giving AG Grid
+  // an exact bounded height. AG Grid fills it with its own single scrollbar set.
+  // No outer wrapper scroll — one scroll context only.
   return (
-    <div className="ag-theme-alpine w-full h-full" style={{ minHeight: 400, minWidth: 700 }}>
+    <div className="ag-theme-alpine" style={{ flex: '1 1 0', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
       <style>{GRID_STYLES}</style>
 
       {savingRow !== null && (
@@ -798,6 +853,8 @@ export default function LeadsTable({
         animateRows={false}
         suppressCellFocus={false}
         enableCellTextSelection
+        alwaysShowHorizontalScroll
+        alwaysShowVerticalScroll
         getRowId={(params) => String(params.data.rowIndex)}
         getRowClass={getRowClass}
       />

@@ -49,12 +49,3 @@ export const WEBSITE_COLUMNS = {
 } as const;
 
 export const WEBSITE_DATA_RANGE = 'A2:I';
-
-export const STATUS_OPTIONS = [
-  'New',
-  'Contacted',
-  'Interested',
-  'Not Interested',
-  'Converted',
-  'Follow Up',
-] as const;

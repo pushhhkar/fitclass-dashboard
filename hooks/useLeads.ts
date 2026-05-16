@@ -60,7 +60,8 @@ interface UseLeadsReturn {
   stats: StatsData;
   loading: boolean;
   error: string | null;
-  websiteHeaders: string[];  // dynamic sheet headers for website-leads (empty for meta-leads)
+  websiteHeaders: string[];   // dynamic sheet headers for website-leads (empty for meta-leads)
+  statusOptions: string[];    // dropdown options read from Sheets data validation rule
   newLeadCount: number;
   newLeadRowKeys: Set<string>;
   clearNewLeadCount: () => void;
@@ -74,6 +75,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
   const [error, setError]               = useState<string | null>(null);
   const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
   const [websiteHeaders, setWebsiteHeaders] = useState<string[]>([]);
+  const [statusOptions, setStatusOptions]   = useState<string[]>([]);
   const [newLeadCount, setNewLeadCount] = useState(0);
   const [newLeadRowKeys, setNewLeadRowKeys] = useState<Set<string>>(new Set());
 
@@ -103,9 +105,11 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
       const res = await fetch(`/api/leads?${params}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const json: { leads: Lead[]; headers: string[] } = await res.json();
+      const json: { leads: Lead[]; headers: string[]; statusOptions: string[] } = await res.json();
       const raw = json.leads ?? [];
       if (json.headers?.length) setWebsiteHeaders(json.headers);
+      // Always overwrite — even an empty array is a valid response (no rule found).
+      if (Array.isArray(json.statusOptions)) setStatusOptions(json.statusOptions);
       const sorted = sortNewestFirst(raw);
 
       if (silent && !isFirstFetch.current) {
@@ -159,6 +163,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
     setLoading(true);
     setLastUpdated(null);
     setWebsiteHeaders([]);
+    setStatusOptions([]);
     setNewLeadCount(0);
     setNewLeadRowKeys(new Set());
     isFirstFetch.current = true;
@@ -231,6 +236,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
     loading,
     error,
     websiteHeaders,
+    statusOptions,
     newLeadCount,
     newLeadRowKeys,
     clearNewLeadCount,

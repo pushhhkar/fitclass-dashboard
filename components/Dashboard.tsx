@@ -30,7 +30,7 @@ export default function Dashboard() {
 
   const {
     leads, stats, loading, error,
-    websiteHeaders,
+    websiteHeaders, statusOptions,
     newLeadCount, newLeadRowKeys,
     clearNewLeadCount,
     updateLead, transferLead,
@@ -48,7 +48,16 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col min-h-full sm:h-full min-w-0 bg-[#F8FAFC]">
+    /*
+      Desktop: rigid flex column filling the viewport shell from layout.tsx.
+        - Navbar / BranchTabs / StatsCards / Toolbar → shrink-0 (fixed height)
+        - .dashboard-grid-region → flex:1 1 0, minHeight:0 — takes ALL remaining
+          space and hands it directly to AG Grid which fills it with its own scroll.
+      Mobile: overflow-y:auto on the root + mobile card list = natural page scroll.
+    */
+    <div className="dashboard-root">
+
+      {/* ── Fixed chrome ──────────────────────────────────────────────────── */}
       <Navbar
         dashboards={DASHBOARDS}
         activeDashboard={activeDashboard}
@@ -72,49 +81,47 @@ export default function Dashboard() {
 
       <StatsCards stats={stats} leads={leads} />
 
-      {/* Toolbar — sticky on mobile so search stays accessible while scrolling */}
-      <div className="sticky top-16 z-20 bg-white border-b border-[#F1F5F9] sm:static sm:bg-transparent sm:border-0 sm:z-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-6 py-3">
-          <div className="flex items-center gap-2.5">
-            <span className="text-sm font-semibold text-[#0F172A]">
-              {activeBranch?.name ?? '—'}
+      {/* Toolbar */}
+      <div className="dashboard-toolbar">
+        <div className="flex items-center gap-2.5">
+          <span className="text-sm font-semibold text-[#0F172A]">
+            {activeBranch?.name ?? '—'}
+          </span>
+          {!loading && activeBranch && (
+            <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium tabular-nums">
+              {leads.length} total
             </span>
-            {!loading && activeBranch && (
-              <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium tabular-nums">
-                {leads.length} total
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            {error && (
-              <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 text-center">
-                {error}
-              </span>
-            )}
-            <SearchBar value={search} onChange={setSearch} />
-          </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {error && (
+            <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+              {error}
+            </span>
+          )}
+          <SearchBar value={search} onChange={setSearch} />
         </div>
       </div>
 
-      {/* Mobile: natural page scroll over card list; Desktop: fixed-height grid container */}
-      <div className="sm:px-6 sm:pb-6 sm:flex-1 sm:min-w-0 sm:flex sm:flex-col">
-        <div className="sm:bg-white sm:border sm:border-[#E2E8F0] sm:rounded-xl sm:shadow-sm sm:flex sm:flex-col sm:flex-1 sm:overflow-hidden">
-          <div className="sm:flex-1 sm:relative sm:overflow-x-auto">
-            <LeadsTable
-              leads={leads}
-              loading={loading || (!activeBranch && !branchesLoading)}
-              search={search}
-              onUpdate={updateLead}
-              onTransfer={transferLead}
-              dashboardId={activeDashboard.id}
-              allBranches={branches}
-              activeBranchName={activeBranch?.sheetName ?? ''}
-              newLeadRowKeys={newLeadRowKeys}
-              websiteHeaders={websiteHeaders}
-            />
-          </div>
+      {/* ── Grid region — flex:1, hands exact height to LeadsTable ────────── */}
+      <div className="dashboard-grid-region">
+        <div className="dashboard-grid-card">
+          <LeadsTable
+            leads={leads}
+            loading={loading || (!activeBranch && !branchesLoading)}
+            search={search}
+            onUpdate={updateLead}
+            onTransfer={transferLead}
+            dashboardId={activeDashboard.id}
+            allBranches={branches}
+            activeBranchName={activeBranch?.sheetName ?? ''}
+            newLeadRowKeys={newLeadRowKeys}
+            websiteHeaders={websiteHeaders}
+            statusOptions={statusOptions}
+          />
         </div>
       </div>
+
     </div>
   );
 }

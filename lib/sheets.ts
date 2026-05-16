@@ -35,6 +35,50 @@ function columnLetter(index: number): string {
   return letter;
 }
 
+// ── Status dropdown options from data validation ──────────────────────────────
+// Uses the spreadsheets.get API with includeGridData to read the ONE_OF_LIST
+// validation rule from the Status column. Scans rows 2–200 so it works even
+// when early rows have no data. Returns ALL values exactly as stored — no
+// filtering or sanitising.
+export async function fetchStatusOptions(
+  spreadsheetId: string,
+  sheetName: string,
+  statusColIndex: number  // 0-based column index of the Status column
+): Promise<string[]> {
+  if (!spreadsheetId) throw new Error('spreadsheetId is required');
+  const sheets = getSheets();
+
+  const col = columnLetter(statusColIndex);
+
+  // Fetch a wide range so we catch the rule even on sparse sheets.
+  const res = await sheets.spreadsheets.get({
+    spreadsheetId,
+    ranges: [sheetRange(sheetName, `${col}2:${col}200`)],
+    fields: 'sheets.data.rowData.values.dataValidation',
+    includeGridData: true,
+  });
+
+  const rows = res.data.sheets?.[0]?.data?.[0]?.rowData ?? [];
+
+  for (const row of rows) {
+    const cell = row.values?.[0];
+    const rule = cell?.dataValidation;
+    if (rule?.condition?.type === 'ONE_OF_LIST') {
+      // Return ALL raw values — no filtering beyond empty-string removal.
+      const options = (rule.condition.values ?? [])
+        .map((v) => String(v.userEnteredValue ?? ''))
+        .filter((v) => v !== '');
+      if (options.length) {
+        console.log('[fetchStatusOptions] sheet=%s col=%s found %d options: %j', sheetName, col, options.length, options);
+        return options;
+      }
+    }
+  }
+
+  console.warn('[fetchStatusOptions] No ONE_OF_LIST rule found. sheet=%s col=%s rows_scanned=%d', sheetName, col, rows.length);
+  return [];
+}
+
 // ── Header row discovery ──────────────────────────────────────────────────────
 export async function fetchSheetHeaders(
   spreadsheetId: string,

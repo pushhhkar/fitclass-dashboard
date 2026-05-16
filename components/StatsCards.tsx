@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Lead, StatsData } from '@/types';
 
-// ── relative time label ──────────────────────────────────────────────────────
 function useRelativeTime(date: Date | null): string {
   const [label, setLabel] = useState('');
   useEffect(() => {
@@ -48,7 +47,25 @@ function IconPhone() {
     </svg>
   );
 }
-function IconBadge() {
+function IconXCircle() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+function IconCalendarCheck() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+        d="M9 14l2 2 4-4" />
+    </svg>
+  );
+}
+function IconTrophy() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -56,41 +73,54 @@ function IconBadge() {
     </svg>
   );
 }
-function IconCheck() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
 
-// ── sub-stat card ─────────────────────────────────────────────────────────────
-interface SubCardProps {
+// ── card ──────────────────────────────────────────────────────────────────────
+interface CardProps {
   label: string;
   count: number;
   total: number;
   iconBg: string;
   iconColor: string;
   icon: React.ReactNode;
+  isHero?: boolean;
+  timeLabel?: string;
 }
-function SubCard({ label, count, total, iconBg, iconColor, icon }: SubCardProps) {
+
+function StatCard({ label, count, total, iconBg, iconColor, icon, isHero, timeLabel }: CardProps) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-4 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow duration-200 min-w-[140px] flex-1">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-widest">{label}</span>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBg} ${iconColor}`}>
+    <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-4 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow duration-200 flex-1 min-w-[130px]">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest leading-tight">
+          {label}
+        </span>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
           {icon}
         </div>
       </div>
-      <div>
-        <span className="text-2xl font-bold text-[#0F172A] tabular-nums">{count}</span>
-        <span className="ml-2 text-sm font-semibold" style={{ color: pct > 0 ? '#16A34A' : '#94A3B8' }}>
-          {pct}%
+
+      <div className="flex items-end gap-2">
+        <span className={`font-bold text-[#0F172A] tabular-nums ${isHero ? 'text-3xl' : 'text-2xl'}`}>
+          {count}
         </span>
+        {!isHero && (
+          <span className="text-sm font-semibold mb-0.5" style={{ color: pct > 0 ? '#16A34A' : '#94A3B8' }}>
+            {pct}%
+          </span>
+        )}
       </div>
-      <p className="text-xs text-[#94A3B8]">of total leads</p>
+
+      {isHero ? (
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
+          <span className="text-xs text-[#64748B]">
+            {timeLabel ? `Updated ${timeLabel}` : 'Loading…'}
+          </span>
+        </div>
+      ) : (
+        <p className="text-xs text-[#94A3B8]">of total leads</p>
+      )}
     </div>
   );
 }
@@ -104,69 +134,81 @@ interface Props {
 export default function StatsCards({ stats, leads }: Props) {
   const timeLabel = useRelativeTime(stats.lastUpdated);
 
-  const counts = useMemo(() => ({
-    new:       leads.filter(l => l.Status === 'New').length,
-    contacted: leads.filter(l => l.Status === 'Contacted').length,
-    membership:leads.filter(l => l.Status === 'Interested' || l.Status === 'Follow Up').length,
-    converted: leads.filter(l => l.Status === 'Converted').length,
-  }), [leads]);
+  const counts = useMemo(() => {
+    const CALL_ATTEMPTED  = new Set(['Call Attempted', 'Not Answering', 'Call Back Later']);
+    const UNQUALIFIED     = new Set(['Budget Issue', 'Wrong Branch', 'Location Issue', 'Not Interested', 'Job Applicant']);
+
+    return {
+      new:            leads.filter(l => l.Status === 'New').length,
+      callAttempted:  leads.filter(l => CALL_ATTEMPTED.has(l.Status ?? '')).length,
+      unqualified:    leads.filter(l => UNQUALIFIED.has(l.Status ?? '')).length,
+      visitScheduled: leads.filter(l => l.Status === 'Visit Scheduled').length,
+      converted:      leads.filter(l => l.Status === 'Membership Purchased').length,
+    };
+  }, [leads]);
+
+  const total = stats.total;
 
   return (
-    <div className="px-4 sm:px-6 py-4">
+    <div className="px-4 sm:px-6 py-3">
       <div className="flex flex-wrap gap-3">
 
-        {/* Total Leads — wider hero card */}
-        <div className="bg-white border border-[#E2E8F0] rounded-xl px-5 py-4 flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow duration-200 min-w-[180px] w-full sm:w-auto sm:flex-none">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-widest">Total Leads</span>
-              <div className="text-3xl font-bold text-[#0F172A] tabular-nums mt-1">{stats.total}</div>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-[#EFF6FF] flex items-center justify-center text-[#0A6BA8] shrink-0">
-              <IconPeople />
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
-            <span className="text-xs text-[#64748B]">
-              {timeLabel ? `Updated ${timeLabel}` : 'Loading…'}
-            </span>
-          </div>
-        </div>
+        <StatCard
+          label="TOTAL LEADS"
+          count={total}
+          total={total}
+          iconBg="bg-[#EFF6FF]"
+          iconColor="text-[#0A6BA8]"
+          icon={<IconPeople />}
+          isHero
+          timeLabel={timeLabel}
+        />
 
-        {/* Dynamic sub-cards */}
-        <SubCard
-          label="New Leads"
+        <StatCard
+          label="NEW LEADS"
           count={counts.new}
-          total={stats.total}
+          total={total}
           iconBg="bg-blue-50"
           iconColor="text-[#0A6BA8]"
           icon={<IconPersonPlus />}
         />
-        <SubCard
-          label="Contacted"
-          count={counts.contacted}
-          total={stats.total}
+
+        <StatCard
+          label="CALL ATTEMPTED"
+          count={counts.callAttempted}
+          total={total}
           iconBg="bg-amber-50"
           iconColor="text-amber-600"
           icon={<IconPhone />}
         />
-        <SubCard
-          label="Interested"
-          count={counts.membership}
-          total={stats.total}
-          iconBg="bg-green-50"
-          iconColor="text-[#16A34A]"
-          icon={<IconBadge />}
+
+        <StatCard
+          label="UNQUALIFIED LEADS"
+          count={counts.unqualified}
+          total={total}
+          iconBg="bg-red-50"
+          iconColor="text-red-500"
+          icon={<IconXCircle />}
         />
-        <SubCard
-          label="Converted"
+
+        <StatCard
+          label="VISIT SCHEDULED"
+          count={counts.visitScheduled}
+          total={total}
+          iconBg="bg-teal-50"
+          iconColor="text-teal-600"
+          icon={<IconCalendarCheck />}
+        />
+
+        <StatCard
+          label="CONVERTED"
           count={counts.converted}
-          total={stats.total}
+          total={total}
           iconBg="bg-purple-50"
           iconColor="text-purple-600"
-          icon={<IconCheck />}
+          icon={<IconTrophy />}
         />
+
       </div>
     </div>
   );

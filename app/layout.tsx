@@ -12,9 +12,20 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-[#F8FAFC] min-h-screen flex flex-col`} suppressHydrationWarning>
-        {/* Mobile: natural page scroll. Desktop: clipped so AG Grid stays in viewport. */}
-        <main className="flex-1 flex flex-col overflow-y-auto sm:overflow-hidden">{children}</main>
+      {/*
+        Full-viewport rigid shell.
+        overflow:hidden stops the page itself from scrolling — the only
+        scrollable region is the AG Grid body inside the dashboard.
+        On mobile, Dashboard switches to a natural document scroll instead.
+      */}
+      <body
+        className={`${inter.className} bg-[#F8FAFC]`}
+        style={{ margin: 0, padding: 0, height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        suppressHydrationWarning
+      >
+        <main style={{ flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {children}
+        </main>
       </body>
     </html>
   );
