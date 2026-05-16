@@ -12,7 +12,7 @@ interface Props {
 export default function BranchTabs({ branches, activeId, loading, onChange }: Props) {
   if (loading) {
     return (
-      <div className="w-full border-b border-[#E2E8F0] bg-white px-4 sm:px-6 py-3">
+      <div className="w-full border-b border-[#E2E8F0] bg-white px-4 sm:px-6 py-2">
         <div className="flex gap-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-4 w-20 rounded bg-[#F1F5F9] animate-pulse" />
@@ -36,7 +36,7 @@ export default function BranchTabs({ branches, activeId, loading, onChange }: Pr
                 key={branch.id}
                 onClick={() => onChange(branch)}
                 className={[
-                  'flex-shrink-0 px-4 py-3.5 text-sm font-medium border-b-2 transition-all duration-150',
+                  'flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-150',
                   isActive
                     ? 'border-[#0A6BA8] text-[#0A6BA8]'
                     : 'border-transparent text-[#64748B] hover:text-[#0F172A] hover:border-[#CBD5E1]',

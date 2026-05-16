@@ -90,22 +90,22 @@ function StatCard({ label, count, total, iconBg, iconColor, icon, isHero, timeLa
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
 
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-4 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow duration-200 flex-1 min-w-[130px]">
+    <div className="bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-3 flex flex-col gap-1.5 shadow-sm hover:shadow-md transition-shadow duration-200 flex-1 min-w-[120px]">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-widest leading-tight">
+        <span className="text-[9.5px] font-semibold text-[#64748B] uppercase tracking-widest leading-tight">
           {label}
         </span>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
-          {icon}
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+          <span className="[&>svg]:w-4 [&>svg]:h-4">{icon}</span>
         </div>
       </div>
 
-      <div className="flex items-end gap-2">
-        <span className={`font-bold text-[#0F172A] tabular-nums ${isHero ? 'text-3xl' : 'text-2xl'}`}>
+      <div className="flex items-end gap-1.5">
+        <span className={`font-bold text-[#0F172A] tabular-nums ${isHero ? 'text-2xl' : 'text-xl'}`}>
           {count}
         </span>
         {!isHero && (
-          <span className="text-sm font-semibold mb-0.5" style={{ color: pct > 0 ? '#16A34A' : '#94A3B8' }}>
+          <span className="text-xs font-semibold mb-0.5" style={{ color: pct > 0 ? '#16A34A' : '#94A3B8' }}>
             {pct}%
           </span>
         )}
@@ -113,13 +113,13 @@ function StatCard({ label, count, total, iconBg, iconColor, icon, isHero, timeLa
 
       {isHero ? (
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
-          <span className="text-xs text-[#64748B]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse" />
+          <span className="text-[10px] text-[#64748B]">
             {timeLabel ? `Updated ${timeLabel}` : 'Loading…'}
           </span>
         </div>
       ) : (
-        <p className="text-xs text-[#94A3B8]">of total leads</p>
+        <p className="text-[10px] text-[#94A3B8]">of total leads</p>
       )}
     </div>
   );
@@ -150,8 +150,8 @@ export default function StatsCards({ stats, leads }: Props) {
   const total = stats.total;
 
   return (
-    <div className="px-4 sm:px-6 py-3">
-      <div className="flex flex-wrap gap-3">
+    <div className="px-4 sm:px-5 py-2">
+      <div className="flex flex-wrap gap-2">
 
         <StatCard
           label="TOTAL LEADS"
