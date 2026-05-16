@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchLeads, fetchSheetHeaders, fetchStatusOptions } from '@/lib/sheets';
+import { fetchLeads, fetchStatusOptions } from '@/lib/sheets';
 import { getSpreadsheetId } from '@/lib/dashboard-secrets';
-import { META_COLUMNS, WEBSITE_COLUMNS } from '@/lib/config';
+import { SEMANTIC_HEADERS } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,14 +15,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const spreadsheetId = getSpreadsheetId(dashboardId);
-    const isWebsite = dashboardId === 'website-leads';
-    const statusColIndex = isWebsite ? WEBSITE_COLUMNS.Status : META_COLUMNS.Status;
 
-    const [leads, headers, statusOptions] = await Promise.all([
-      fetchLeads(spreadsheetId, sheetName, dashboardId),
-      isWebsite ? fetchSheetHeaders(spreadsheetId, sheetName) : Promise.resolve([] as string[]),
-      fetchStatusOptions(spreadsheetId, sheetName, statusColIndex),
-    ]);
+    // fetchLeads now returns headers alongside leads — one API call for both.
+    const { leads, headers } = await fetchLeads(spreadsheetId, sheetName);
+
+    // Derive Status column index from live headers — no hardcoded offsets.
+    const statusColIndex = headers.indexOf(SEMANTIC_HEADERS.status);
+    const statusOptions = statusColIndex !== -1
+      ? await fetchStatusOptions(spreadsheetId, sheetName, statusColIndex)
+      : [];
 
     return NextResponse.json({ leads, headers, statusOptions });
   } catch (err) {

@@ -39,7 +39,7 @@ interface Props {
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
   onTransfer: (lead: Lead, targetSheetName: string) => Promise<void>;
   newLeadRowKeys: Set<string>;
-  websiteHeaders: string[];
+  headers: string[];       // live Row 1 headers — drives column order and names
   statusOptions: string[];
 }
 
@@ -371,20 +371,19 @@ function MobileCommentsEditor({ lead, onUpdate }: CommentsEditorProps) {
 interface CardProps {
   lead: Lead;
   isNew: boolean;
-  dashboardId: string;
+  headers: string[];
   allBranches: DynamicBranch[];
   activeBranchName: string;
-  websiteHeaders: string[];
   statusOptions: string[];
   onUpdate: (payload: Omit<UpdatePayload, 'dashboardId' | 'sheetName'>) => Promise<void>;
   onTransfer: (lead: Lead, targetSheetName: string) => Promise<void>;
 }
 
-function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchName, websiteHeaders, statusOptions, onUpdate, onTransfer }: CardProps) {
-  const isWebsite = dashboardId === 'website-leads';
-  const branchLabel = isWebsite
-    ? (websiteHeaders[5] || 'Selected Branch')
-    : 'Address';
+function MobileLeadCard({ lead, isNew, headers, allBranches, activeBranchName, statusOptions, onUpdate, onTransfer }: CardProps) {
+  const hasHeader = (name: string) => headers.includes(name);
+  // Use the actual header label for address-like column
+  const branchLabel = hasHeader('Selected Branch') ? 'Selected Branch' : 'Address';
+  const remarksLabel = hasHeader('Remarks') ? 'Remarks' : 'Comments';
 
   return (
     <div className={[
@@ -421,7 +420,7 @@ function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchNam
 
       <div className="h-px bg-[#F1F5F9] mx-4" />
 
-      {/* Meta fields */}
+      {/* Meta fields — show whichever fields exist in this sheet */}
       <div className="px-4 py-3 flex flex-col gap-2">
         {lead.address && (
           <div className="flex items-start gap-2">
@@ -430,19 +429,19 @@ function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchNam
           </div>
         )}
         {/* Email hidden on mobile — too long, causes overflow */}
-        {isWebsite && lead.reason && (
+        {lead.reason && (
           <div className="flex items-start gap-2">
-            <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide w-20 shrink-0 pt-0.5">{websiteHeaders[4] || 'Reason'}</span>
+            <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide w-20 shrink-0 pt-0.5">Reason</span>
             <span className="text-sm text-[#475569]">{lead.reason}</span>
           </div>
         )}
-        {!isWebsite && lead.campaignName && (
+        {lead.campaignName && (
           <div className="flex items-start gap-2">
             <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide w-20 shrink-0 pt-0.5">Campaign</span>
             <span className="text-sm text-[#475569]">{lead.campaignName}</span>
           </div>
         )}
-        {!isWebsite && lead.joiningPlan && (
+        {lead.joiningPlan && (
           <div className="flex items-start gap-2">
             <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide w-20 shrink-0 pt-0.5">Plan</span>
             <span className="text-sm text-[#475569]">{lead.joiningPlan}</span>
@@ -461,7 +460,7 @@ function MobileLeadCard({ lead, isNew, dashboardId, allBranches, activeBranchNam
       {/* Remarks */}
       <div className="px-4 py-3">
         <div className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-1.5">
-          {isWebsite ? (websiteHeaders[7] || 'Remarks') : 'Remarks'}
+          {remarksLabel}
         </div>
         <MobileCommentsEditor lead={lead} onUpdate={onUpdate} />
       </div>
@@ -610,117 +609,125 @@ const GRID_STYLES = `
   }
 `;
 
-// ── Desktop column definitions ────────────────────────────────────────────────
-function makeStatusCol(options: string[]): ColDef<Lead> {
-  return {
-    headerName: 'Status',
-    field: 'Status',
-    width: 160,
-    editable: true,
-    sortable: true,
-    filter: true,
-    cellEditor: 'agSelectCellEditor',
-    cellEditorParams: { values: options },
-    cellRenderer: (p: { value: string }) => <StatusBadge value={p.value} />,
-    cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
-    headerClass: 'editable-col-header',
-  };
-}
-
-function makeCommentsCol(headerName: string): ColDef<Lead> {
-  return {
-    headerName,
-    field: 'Comments',
-    flex: 2,
-    minWidth: 180,
-    editable: true,
-    filter: true,
-    cellEditor: 'agTextCellEditor',
-    cellStyle: { color: '#475569' },
-    headerClass: 'editable-col-header',
-  };
-}
-
-function makeTransferCol(
-  allBranches: DynamicBranch[],
-  activeBranchName: string,
-  onTransfer: (lead: Lead, target: string) => Promise<void>
-): ColDef<Lead> {
-  return {
-    headerName: 'Transfer To',
-    field: 'transferTo',
-    width: 170,
-    editable: false,
-    sortable: false,
-    filter: false,
-    cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
-    cellRenderer: (p: ICellRendererParams<Lead>) => (
-      <TransferCellRenderer
-        {...p}
-        allBranches={allBranches}
-        activeBranchName={activeBranchName}
-        onTransfer={onTransfer}
-      />
-    ),
-  };
-}
-
-function buildMetaColumns(
-  allBranches: DynamicBranch[],
-  activeBranchName: string,
-  onTransfer: (lead: Lead, target: string) => Promise<void>,
-  options: string[]
-): ColDef<Lead>[] {
-  return [
-    { headerName: 'Date',                field: 'createdTime',        width: 120, editable: false, sortable: true, filter: true },
-    { headerName: 'Campaign',            field: 'campaignName',       width: 130, editable: false, sortable: true, filter: true },
-    { headerName: 'Name',                field: 'fullName',           flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
-    { headerName: 'Phone Number',        field: 'phoneNumber',        width: 130, editable: false, filter: true },
-    { headerName: 'Address',             field: 'address',            flex: 1, minWidth: 140, editable: false, filter: true },
-    { headerName: 'Plan Selected',       field: 'joiningPlan',        width: 130, editable: false, sortable: true, filter: true },
-    { headerName: 'Membership Selected', field: 'membershipInterest', width: 155, editable: false, sortable: true, filter: true },
-    { headerName: 'Primary Fitness Goal',field: 'fitnessGoal',        width: 170, editable: false, sortable: true, filter: true },
-    makeStatusCol(options),
-    makeCommentsCol('Remarks'),
-    makeTransferCol(allBranches, activeBranchName, onTransfer),
-  ];
-}
-
-function buildWebsiteColumns(
-  allBranches: DynamicBranch[],
-  activeBranchName: string,
-  onTransfer: (lead: Lead, target: string) => Promise<void>,
+// ── Dynamic column builder ────────────────────────────────────────────────────
+// Generates columnDefs by mapping over the live headers array from Row 1.
+// Feature detection: each header name is matched against known semantics.
+// If a header isn't recognised it renders as a plain read-only text column.
+// Column order always matches sheet column order exactly.
+function buildDynamicColumns(
   headers: string[],
-  options: string[]
+  allBranches: DynamicBranch[],
+  activeBranchName: string,
+  onTransfer: (lead: Lead, target: string) => Promise<void>,
+  statusOptions: string[],
 ): ColDef<Lead>[] {
-  const h = (i: number, fallback: string) => headers[i] || fallback;
-  const statusCol = makeStatusCol(options);
-  return [
-    { headerName: h(0, 'Date'),            field: 'createdTime', width: 120,            editable: false, sortable: true, filter: true },
-    { headerName: h(1, 'Name'),            field: 'fullName',    flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
-    { headerName: h(2, 'Phone Number'),    field: 'phoneNumber', width: 140,            editable: false, filter: true },
-    { headerName: h(3, 'Email Address'),   field: 'email',       flex: 1, minWidth: 180, editable: false, filter: true },
-    { headerName: h(4, 'Reason'),          field: 'reason',      flex: 1, minWidth: 130, editable: false, sortable: true, filter: true },
-    { headerName: h(5, 'Selected Branch'), field: 'address',     width: 150,            editable: false, sortable: true, filter: true },
-    { ...statusCol, headerName: h(6, statusCol.headerName as string) },
-    makeCommentsCol(h(7, 'Remarks')),
-    makeTransferCol(allBranches, activeBranchName, onTransfer),
-  ];
+  return headers.map((header, colIndex): ColDef<Lead> => {
+    // All columns read their value from rawCells[colIndex] — the ground truth.
+    const base: ColDef<Lead> = {
+      headerName: header,
+      colId: `col_${colIndex}`,
+      valueGetter: (p) => p.data?.rawCells?.[colIndex] ?? '',
+      valueSetter: (p) => {
+        if (p.data?.rawCells) p.data.rawCells[colIndex] = p.newValue ?? '';
+        return true;
+      },
+      sortable: true,
+      filter: true,
+      editable: false,
+      width: 140,
+    };
+
+    // ── Feature detection ─────────────────────────────────────────────────
+    switch (header) {
+      case 'Status':
+        return {
+          ...base,
+          width: 160,
+          editable: true,
+          cellEditor: 'agSelectCellEditor',
+          cellEditorParams: { values: statusOptions },
+          cellRenderer: (p: { value: string }) => <StatusBadge value={p.value ?? ''} />,
+          cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
+          headerClass: 'editable-col-header',
+        };
+
+      case 'Remarks':
+        return {
+          ...base,
+          flex: 2,
+          minWidth: 180,
+          width: undefined,
+          editable: true,
+          cellEditor: 'agTextCellEditor',
+          cellStyle: { color: '#475569' },
+          headerClass: 'editable-col-header',
+          // Mirror edit back to the Comments semantic field so hooks stay in sync
+          valueSetter: (p) => {
+            if (p.data) {
+              p.data.Comments = p.newValue ?? '';
+              if (p.data.rawCells) p.data.rawCells[colIndex] = p.newValue ?? '';
+            }
+            return true;
+          },
+        };
+
+      case 'Transfer To':
+        return {
+          ...base,
+          width: 170,
+          editable: false,
+          sortable: false,
+          filter: false,
+          cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string>,
+          cellRenderer: (p: ICellRendererParams<Lead>) => (
+            <TransferCellRenderer
+              {...p}
+              allBranches={allBranches}
+              activeBranchName={activeBranchName}
+              onTransfer={onTransfer}
+            />
+          ),
+        };
+
+      case 'Date':
+        return { ...base, width: 120 };
+
+      case 'Name':
+        return { ...base, flex: 1, minWidth: 130, width: undefined };
+
+      case 'Phone Number':
+        return { ...base, width: 140, sortable: false };
+
+      case 'Email Address':
+      case 'Email':
+        return { ...base, flex: 1, minWidth: 180, width: undefined };
+
+      case 'Address':
+      case 'Selected Branch':
+        return { ...base, flex: 1, minWidth: 140, width: undefined };
+
+      case 'Campaign':
+      case 'Campaign Name':
+        return { ...base, width: 140 };
+
+      default:
+        return base;
+    }
+  });
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function LeadsTable({
   leads, loading, statusFilter = 'all', dashboardId,
   allBranches, activeBranchName,
-  newLeadRowKeys, websiteHeaders, statusOptions,
+  newLeadRowKeys, headers, statusOptions,
   onUpdate, onTransfer,
 }: Props) {
   const gridRef = useRef<AgGridReact>(null);
   const [savingRow, setSavingRow] = useState<number | null>(null);
   const isMobile = useIsMobile();
 
-  const isWebsite = dashboardId === 'website-leads';
-  // Use live options from Sheets; fall back to hardcoded list only before first fetch.
+  // Fall back to hardcoded options only during the ~1s before first API response.
   const resolvedOptions = statusOptions.length ? statusOptions : FALLBACK_STATUS_OPTIONS;
 
   const filtered = useMemo(() => {
@@ -731,10 +738,8 @@ export default function LeadsTable({
   }, [leads, statusFilter]);
 
   const columnDefs = useMemo(
-    () => isWebsite
-      ? buildWebsiteColumns(allBranches, activeBranchName, onTransfer, websiteHeaders, resolvedOptions)
-      : buildMetaColumns(allBranches, activeBranchName, onTransfer, resolvedOptions),
-    [isWebsite, allBranches, activeBranchName, onTransfer, websiteHeaders, resolvedOptions]
+    () => buildDynamicColumns(headers, allBranches, activeBranchName, onTransfer, resolvedOptions),
+    [headers, allBranches, activeBranchName, onTransfer, resolvedOptions]
   );
 
   const defaultColDef: ColDef = useMemo(() => ({
@@ -745,17 +750,19 @@ export default function LeadsTable({
 
   const onCellValueChanged = useCallback(async (event: CellValueChangedEvent<Lead>) => {
     const { data, colDef, newValue } = event;
-    if (!data || !colDef.field) return;
-    if (colDef.field !== 'Status' && colDef.field !== 'Comments') return;
+    if (!data) return;
     if (newValue === event.oldValue) return;
+
+    // Determine which semantic field was edited from the column header.
+    const header = colDef.headerName ?? '';
+    let field: 'Status' | 'Comments' | null = null;
+    if (header === 'Status') field = 'Status';
+    else if (header === 'Remarks') field = 'Comments';
+    if (!field) return;
 
     setSavingRow(data.rowIndex);
     try {
-      await onUpdate({
-        rowIndex: data.rowIndex,
-        field: colDef.field as 'Status' | 'Comments',
-        value: newValue ?? '',
-      });
+      await onUpdate({ rowIndex: data.rowIndex, field, value: newValue ?? '' });
     } finally {
       setSavingRow(null);
     }
@@ -808,10 +815,9 @@ export default function LeadsTable({
               key={lead.rowIndex}
               lead={lead}
               isNew={newLeadRowKeys.has(key)}
-              dashboardId={dashboardId}
+              headers={headers}
               allBranches={allBranches}
               activeBranchName={activeBranchName}
-              websiteHeaders={websiteHeaders}
               statusOptions={resolvedOptions}
               onUpdate={onUpdate}
               onTransfer={onTransfer}

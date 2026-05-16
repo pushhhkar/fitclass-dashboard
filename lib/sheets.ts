@@ -1,8 +1,5 @@
 import { google } from 'googleapis';
-import {
-  META_COLUMNS, META_DATA_RANGE,
-  WEBSITE_COLUMNS, WEBSITE_DATA_RANGE,
-} from './config';
+import { SEMANTIC_HEADERS } from './config';
 import type { Lead, UpdatePayload, TransferPayload } from '@/types';
 
 function getAuth() {
@@ -18,7 +15,6 @@ function getSheets() {
   return google.sheets({ version: 'v4', auth: getAuth() });
 }
 
-// Wraps a sheet name in single quotes and escapes embedded single quotes.
 function sheetRange(name: string, suffix: string): string {
   const escaped = name.replace(/'/g, "\\'");
   return `'${escaped}'!${suffix}`;
@@ -35,51 +31,8 @@ function columnLetter(index: number): string {
   return letter;
 }
 
-// ── Status dropdown options from data validation ──────────────────────────────
-// Uses the spreadsheets.get API with includeGridData to read the ONE_OF_LIST
-// validation rule from the Status column. Scans rows 2–200 so it works even
-// when early rows have no data. Returns ALL values exactly as stored — no
-// filtering or sanitising.
-export async function fetchStatusOptions(
-  spreadsheetId: string,
-  sheetName: string,
-  statusColIndex: number  // 0-based column index of the Status column
-): Promise<string[]> {
-  if (!spreadsheetId) throw new Error('spreadsheetId is required');
-  const sheets = getSheets();
-
-  const col = columnLetter(statusColIndex);
-
-  // Fetch a wide range so we catch the rule even on sparse sheets.
-  const res = await sheets.spreadsheets.get({
-    spreadsheetId,
-    ranges: [sheetRange(sheetName, `${col}2:${col}200`)],
-    fields: 'sheets.data.rowData.values.dataValidation',
-    includeGridData: true,
-  });
-
-  const rows = res.data.sheets?.[0]?.data?.[0]?.rowData ?? [];
-
-  for (const row of rows) {
-    const cell = row.values?.[0];
-    const rule = cell?.dataValidation;
-    if (rule?.condition?.type === 'ONE_OF_LIST') {
-      // Return ALL raw values — no filtering beyond empty-string removal.
-      const options = (rule.condition.values ?? [])
-        .map((v) => String(v.userEnteredValue ?? ''))
-        .filter((v) => v !== '');
-      if (options.length) {
-        console.log('[fetchStatusOptions] sheet=%s col=%s found %d options: %j', sheetName, col, options.length, options);
-        return options;
-      }
-    }
-  }
-
-  console.warn('[fetchStatusOptions] No ONE_OF_LIST rule found. sheet=%s col=%s rows_scanned=%d', sheetName, col, rows.length);
-  return [];
-}
-
 // ── Header row discovery ──────────────────────────────────────────────────────
+// Returns the exact header strings from Row 1, in sheet column order.
 export async function fetchSheetHeaders(
   spreadsheetId: string,
   sheetName: string
@@ -88,7 +41,7 @@ export async function fetchSheetHeaders(
   const sheets = getSheets();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: sheetRange(sheetName, 'A1:Z1'),
+    range: sheetRange(sheetName, 'A1:ZZ1'),
   });
   return (res.data.values?.[0] ?? []).map((v) => String(v).trim()).filter(Boolean);
 }
@@ -111,79 +64,117 @@ export async function fetchTabNames(spreadsheetId: string): Promise<string[]> {
     });
 }
 
-// ── Fetch leads ───────────────────────────────────────────────────────────────
+// ── Status dropdown options from data validation ──────────────────────────────
+// Finds the Status column by header name, then reads ONE_OF_LIST validation
+// from rows 2–200. Returns ALL values exactly as stored in the sheet.
+export async function fetchStatusOptions(
+  spreadsheetId: string,
+  sheetName: string,
+  statusColIndex: number  // 0-based; caller derives this from headers
+): Promise<string[]> {
+  if (!spreadsheetId) throw new Error('spreadsheetId is required');
+  const sheets = getSheets();
+  const col = columnLetter(statusColIndex);
+
+  const res = await sheets.spreadsheets.get({
+    spreadsheetId,
+    ranges: [sheetRange(sheetName, `${col}2:${col}200`)],
+    fields: 'sheets.data.rowData.values.dataValidation',
+    includeGridData: true,
+  });
+
+  const rows = res.data.sheets?.[0]?.data?.[0]?.rowData ?? [];
+  for (const row of rows) {
+    const rule = row.values?.[0]?.dataValidation;
+    if (rule?.condition?.type === 'ONE_OF_LIST') {
+      const options = (rule.condition.values ?? [])
+        .map((v) => String(v.userEnteredValue ?? ''))
+        .filter((v) => v !== '');
+      if (options.length) return options;
+    }
+  }
+  return [];
+}
+
+// ── Dynamic lead fetcher ──────────────────────────────────────────────────────
+// Row 1 is always fetched first to get headers. Data rows are mapped purely
+// by column position — no hardcoded offsets anywhere. Adding, removing, or
+// reordering sheet columns is reflected automatically on the next refresh.
 export async function fetchLeads(
   spreadsheetId: string,
   sheetName: string,
-  dashboardId: string
-): Promise<Lead[]> {
+): Promise<{ leads: Lead[]; headers: string[] }> {
   if (!spreadsheetId) throw new Error('spreadsheetId is required');
   const sheets = getSheets();
 
-  const isWebsite = dashboardId === 'website-leads';
-  const dataRange = isWebsite ? WEBSITE_DATA_RANGE : META_DATA_RANGE;
-  const range = sheetRange(sheetName, dataRange);
+  // Fetch headers + all data rows in one call.
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: sheetRange(sheetName, 'A1:ZZ'),
+  });
 
-  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  const allRows = res.data.values ?? [];
+  if (allRows.length === 0) return { leads: [], headers: [] };
 
-  const rows = (res.data.values ?? []).filter((row) =>
+  const headers = (allRows[0] as string[]).map((v) => String(v).trim());
+  const dataRows = allRows.slice(1).filter((row) =>
     row.some((cell) => typeof cell === 'string' && cell.trim() !== '')
   );
 
-  if (isWebsite) {
-    const C = WEBSITE_COLUMNS;
-    return rows.map((row, idx) => ({
-      rowIndex:           idx + 2,
-      createdTime:        row[C.createdTime]  ?? '',
-      fullName:           row[C.fullName]     ?? '',
-      phoneNumber:        row[C.phoneNumber]  ?? '',
-      email:              row[C.email]        ?? '',
-      reason:             row[C.reason]       ?? '',
-      address:            row[C.address]      ?? '',  // Selected Branch
-      Status:             row[C.Status]       ?? '',
-      Comments:           row[C.Comments]     ?? '',
-      transferTo:         row[C.transferTo]   ?? '',
-      // Unused meta fields
-      campaignName:       '',
-      joiningPlan:        row[C.reason]       ?? '',
-      membershipInterest: '',
-      fitnessGoal:        '',
-    }));
-  }
+  // Build an index: headerName → column position (first match wins).
+  const idx: Record<string, number> = {};
+  headers.forEach((h, i) => { if (h && !(h in idx)) idx[h] = i; });
 
-  const C = META_COLUMNS;
-  return rows.map((row, idx) => ({
-    rowIndex:           idx + 2,
-    createdTime:        row[C.createdTime]        ?? '',
-    campaignName:       row[C.campaignName]       ?? '',
-    fullName:           row[C.fullName]           ?? '',
-    phoneNumber:        row[C.phoneNumber]        ?? '',
-    address:            row[C.address]            ?? '',
-    joiningPlan:        row[C.joiningPlan]        ?? '',
-    membershipInterest: row[C.membershipInterest] ?? '',
-    fitnessGoal:        row[C.fitnessGoal]        ?? '',
-    Status:             row[C.Status]             ?? '',
-    Comments:           row[C.Comments]           ?? '',
-    transferTo:         row[C.transferTo]         ?? '',
-    // Unused website fields
-    email:  '',
-    reason: '',
-  }));
+  const S = SEMANTIC_HEADERS;
+
+  const cell = (row: string[], header: string) => (row[idx[header]] ?? '').toString().trim();
+
+  const leads: Lead[] = dataRows.map((row, i) => {
+    const rawCells: string[] = headers.map((_, ci) => (row[ci] ?? '').toString());
+    return {
+      rowIndex:           i + 2,        // 1-based, row 1 is header
+      rawCells,                          // full row for dynamic columns
+      createdTime:        cell(row as string[], S.date),
+      fullName:           cell(row as string[], S.fullName),
+      phoneNumber:        cell(row as string[], S.phone),
+      email:              cell(row as string[], S.email),
+      Status:             cell(row as string[], S.status),
+      Comments:           cell(row as string[], S.comments),
+      transferTo:         cell(row as string[], S.transferTo),
+      // Legacy fields — populated only when the corresponding header exists
+      campaignName:       cell(row as string[], 'Campaign') || cell(row as string[], 'Campaign Name'),
+      address:            cell(row as string[], 'Address') || cell(row as string[], 'Selected Branch'),
+      joiningPlan:        cell(row as string[], 'Plan Selected') || cell(row as string[], 'Joining Plan'),
+      membershipInterest: cell(row as string[], 'Membership Selected') || cell(row as string[], 'Membership Interest'),
+      fitnessGoal:        cell(row as string[], 'Primary Fitness Goal') || cell(row as string[], 'Fitness Goal'),
+      reason:             cell(row as string[], 'Reason') || cell(row as string[], 'Enquiry Reason'),
+    };
+  });
+
+  return { leads, headers };
 }
 
 // ── Update Status or Comments cell ───────────────────────────────────────────
+// Locates the target column by fetching headers dynamically.
 export async function updateCell(
   payload: UpdatePayload & { spreadsheetId: string }
 ): Promise<void> {
   const sheets = getSheets();
-  const isWebsite = payload.dashboardId === 'website-leads';
-  const cols = isWebsite ? WEBSITE_COLUMNS : META_COLUMNS;
 
-  const colLetter =
-    payload.field === 'Status'
-      ? columnLetter(cols.Status)
-      : columnLetter(cols.Comments);
+  // Resolve which header to look for based on field name.
+  const S = SEMANTIC_HEADERS;
+  const targetHeader = payload.field === 'Status' ? S.status : S.comments;
 
+  // Fetch row 1 to get the column index dynamically.
+  const headerRes = await sheets.spreadsheets.values.get({
+    spreadsheetId: payload.spreadsheetId,
+    range: sheetRange(payload.sheetName, 'A1:ZZ1'),
+  });
+  const headers = (headerRes.data.values?.[0] ?? []).map((v) => String(v).trim());
+  const colIndex = headers.indexOf(targetHeader);
+  if (colIndex === -1) throw new Error(`Column "${targetHeader}" not found in sheet "${payload.sheetName}"`);
+
+  const colLetter = columnLetter(colIndex);
   const range = sheetRange(payload.sheetName, `${colLetter}${payload.rowIndex}`);
 
   await sheets.spreadsheets.values.update({
@@ -195,46 +186,41 @@ export async function updateCell(
 }
 
 // ── Transfer lead to another sheet tab ───────────────────────────────────────
-// Appends the lead row to the target sheet and writes the target name into
-// the "Transfer To" column of the source row.
+// Reads headers of both source and target dynamically. Column order in the
+// appended row matches the TARGET sheet's column order exactly.
 export async function transferLead(
   payload: TransferPayload & { spreadsheetId: string }
 ): Promise<void> {
   const sheets = getSheets();
-  const { lead, targetSheetName, sourceSheetName, spreadsheetId, dashboardId } = payload;
-  const isWebsite = dashboardId === 'website-leads';
+  const { lead, targetSheetName, sourceSheetName, spreadsheetId } = payload;
+  const S = SEMANTIC_HEADERS;
 
-  // Build the row array in the correct column order for the target sheet
-  let newRow: string[];
-  if (isWebsite) {
-    const C = WEBSITE_COLUMNS;
-    newRow = Array(Object.keys(C).length).fill('');
-    newRow[C.createdTime]  = lead.createdTime;
-    newRow[C.fullName]     = lead.fullName;
-    newRow[C.phoneNumber]  = lead.phoneNumber;
-    newRow[C.email]        = lead.email;
-    newRow[C.reason]       = lead.reason;
-    newRow[C.address]      = lead.address;
-    newRow[C.Status]       = lead.Status;
-    newRow[C.Comments]     = lead.Comments;
-    newRow[C.transferTo]   = '';
-  } else {
-    const C = META_COLUMNS;
-    newRow = Array(Object.keys(C).length).fill('');
-    newRow[C.createdTime]        = lead.createdTime;
-    newRow[C.campaignName]       = lead.campaignName;
-    newRow[C.fullName]           = lead.fullName;
-    newRow[C.phoneNumber]        = lead.phoneNumber;
-    newRow[C.address]            = lead.address;
-    newRow[C.joiningPlan]        = lead.joiningPlan;
-    newRow[C.membershipInterest] = lead.membershipInterest;
-    newRow[C.fitnessGoal]        = lead.fitnessGoal;
-    newRow[C.Status]             = lead.Status;
-    newRow[C.Comments]           = lead.Comments;
-    newRow[C.transferTo]         = '';
-  }
+  // Fetch both header rows in parallel.
+  const [srcHeaderRes, tgtHeaderRes] = await Promise.all([
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetRange(sourceSheetName, 'A1:ZZ1'),
+    }),
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetRange(targetSheetName, 'A1:ZZ1'),
+    }),
+  ]);
 
-  // 1. Append to target sheet
+  const srcHeaders = (srcHeaderRes.data.values?.[0] ?? []).map((v) => String(v).trim());
+  const tgtHeaders = (tgtHeaderRes.data.values?.[0] ?? []).map((v) => String(v).trim());
+
+  // Build a map of headerName → value from the lead's rawCells.
+  const srcValueMap: Record<string, string> = {};
+  srcHeaders.forEach((h, i) => { srcValueMap[h] = lead.rawCells?.[i] ?? ''; });
+
+  // Build the new row in TARGET column order, leaving unknown columns blank.
+  const newRow: string[] = tgtHeaders.map((h) => {
+    if (h === S.transferTo) return '';  // clear Transfer To on the copy
+    return srcValueMap[h] ?? '';
+  });
+
+  // 1. Append to target sheet.
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: sheetRange(targetSheetName, 'A1'),
@@ -243,15 +229,15 @@ export async function transferLead(
     requestBody: { values: [newRow] },
   });
 
-  // 2. Write target name into Transfer To column of source row
-  const cols = isWebsite ? WEBSITE_COLUMNS : META_COLUMNS;
-  const transferColLetter = columnLetter(cols.transferTo);
-  const sourceRange = sheetRange(sourceSheetName, `${transferColLetter}${lead.rowIndex}`);
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: sourceRange,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [[targetSheetName]] },
-  });
+  // 2. Write target name into Transfer To column of source row.
+  const transferToIndex = srcHeaders.indexOf(S.transferTo);
+  if (transferToIndex !== -1) {
+    const colLetter = columnLetter(transferToIndex);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: sheetRange(sourceSheetName, `${colLetter}${lead.rowIndex}`),
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[targetSheetName]] },
+    });
+  }
 }

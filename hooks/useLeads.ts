@@ -60,7 +60,7 @@ interface UseLeadsReturn {
   stats: StatsData;
   loading: boolean;
   error: string | null;
-  websiteHeaders: string[];   // dynamic sheet headers for website-leads (empty for meta-leads)
+  headers: string[];          // live Row 1 headers — drives column order for both dashboards
   statusOptions: string[];    // dropdown options read from Sheets data validation rule
   newLeadCount: number;
   newLeadRowKeys: Set<string>;
@@ -74,7 +74,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
-  const [websiteHeaders, setWebsiteHeaders] = useState<string[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
   const [statusOptions, setStatusOptions]   = useState<string[]>([]);
   const [newLeadCount, setNewLeadCount] = useState(0);
   const [newLeadRowKeys, setNewLeadRowKeys] = useState<Set<string>>(new Set());
@@ -107,7 +107,8 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
 
       const json: { leads: Lead[]; headers: string[]; statusOptions: string[] } = await res.json();
       const raw = json.leads ?? [];
-      if (json.headers?.length) setWebsiteHeaders(json.headers);
+      // Always update headers — they drive the column schema for both dashboards.
+      if (Array.isArray(json.headers)) setHeaders(json.headers);
       // Always overwrite — even an empty array is a valid response (no rule found).
       if (Array.isArray(json.statusOptions)) setStatusOptions(json.statusOptions);
       const sorted = sortNewestFirst(raw);
@@ -162,7 +163,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
     setLeads([]);
     setLoading(true);
     setLastUpdated(null);
-    setWebsiteHeaders([]);
+    setHeaders([]);
     setStatusOptions([]);
     setNewLeadCount(0);
     setNewLeadRowKeys(new Set());
@@ -235,7 +236,7 @@ export function useLeads(dashboardId: string, sheetName: string): UseLeadsReturn
     stats: { total: leads.length, lastUpdated },
     loading,
     error,
-    websiteHeaders,
+    headers,
     statusOptions,
     newLeadCount,
     newLeadRowKeys,

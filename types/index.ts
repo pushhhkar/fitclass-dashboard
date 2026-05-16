@@ -1,32 +1,27 @@
-export type LeadStatus =
-  | 'New'
-  | 'Contacted'
-  | 'Interested'
-  | 'Not Interested'
-  | 'Converted'
-  | 'Follow Up';
-
 export interface Lead {
   rowIndex: number;        // 1-based sheet row
 
-  // Shared fields
-  createdTime: string;     // col A (both dashboards)
-  Status: LeadStatus | string;
-  Comments: string;        // Remarks column
-  transferTo: string;      // Transfer To column
+  // Full raw row — every cell in sheet column order.
+  // Used by dynamic column rendering and transfer logic.
+  rawCells: string[];
 
-  // Meta Leads fields
-  campaignName: string;    // col B
-  fullName: string;        // col C
-  phoneNumber: string;     // col D
-  address: string;         // col E (Address for meta / Selected Branch for website)
-  joiningPlan: string;     // col F (Plan Selected)
-  membershipInterest: string; // col G (Membership Selected)
-  fitnessGoal: string;     // col H (Primary Fitness Goal) — meta only
-
-  // Website Leads fields
-  email: string;           // col D — website only
-  reason: string;          // col E — website only
+  // ── Semantic fields (derived from header name matching) ───────────────────
+  // These are populated when the sheet contains a column with the matching
+  // header name (see SEMANTIC_HEADERS in lib/config.ts). Empty string when
+  // the column doesn't exist in the current sheet.
+  createdTime:        string;
+  Status:             string;
+  Comments:           string;
+  transferTo:         string;
+  fullName:           string;
+  phoneNumber:        string;
+  email:              string;    // Website Leads only
+  address:            string;    // "Address" (Meta) or "Selected Branch" (Website)
+  reason:             string;    // Website Leads only
+  campaignName:       string;    // Meta Leads only
+  joiningPlan:        string;    // Meta Leads only
+  membershipInterest: string;    // Meta Leads only
+  fitnessGoal:        string;    // Meta Leads only
 }
 
 export interface StatsData {

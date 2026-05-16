@@ -40,7 +40,7 @@ export default function Dashboard() {
 
   const {
     leads, stats, loading, error,
-    websiteHeaders, statusOptions,
+    headers, statusOptions,
     newLeadCount, newLeadRowKeys,
     clearNewLeadCount,
     updateLead, transferLead,
@@ -139,7 +139,7 @@ export default function Dashboard() {
             allBranches={branches}
             activeBranchName={activeBranch?.sheetName ?? ''}
             newLeadRowKeys={newLeadRowKeys}
-            websiteHeaders={websiteHeaders}
+            headers={headers}
             statusOptions={statusOptions}
           />
         </div>
