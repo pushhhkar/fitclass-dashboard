@@ -9,9 +9,21 @@ import BranchTabs from './BranchTabs';
 import StatsCards from './StatsCards';
 import LeadsTable from './LeadsTable';
 
+export type CardFilter = 'all' | 'new' | 'callAttempted' | 'unqualified' | 'visitScheduled' | 'converted';
+
+const FILTER_LABELS: Record<CardFilter, string> = {
+  all:            'All Leads',
+  new:            'New Leads',
+  callAttempted:  'Call Attempted',
+  unqualified:    'Unqualified Leads',
+  visitScheduled: 'Visit Scheduled',
+  converted:      'Converted',
+};
+
 export default function Dashboard() {
   const [activeDashboard, setActiveDashboard] = useState<Dashboard>(DASHBOARDS[0]);
   const [activeBranch, setActiveBranch]       = useState<DynamicBranch | null>(null);
+  const [activeFilter, setActiveFilter]       = useState<CardFilter>('all');
 
   const { branches, loading: branchesLoading, error: branchesError } = useBranches(activeDashboard.id);
 
@@ -37,10 +49,16 @@ export default function Dashboard() {
   const handleDashboardChange = (dashboard: Dashboard) => {
     setActiveDashboard(dashboard);
     setActiveBranch(null);
+    setActiveFilter('all');
   };
 
   const handleBranchChange = (branch: DynamicBranch) => {
     setActiveBranch(branch);
+    setActiveFilter('all');
+  };
+
+  const handleFilterChange = (filter: CardFilter) => {
+    setActiveFilter(prev => prev === filter ? 'all' : filter);
   };
 
   return (
@@ -75,22 +93,34 @@ export default function Dashboard() {
         </div>
       )}
 
-      <StatsCards stats={stats} leads={leads} />
+      <StatsCards stats={stats} leads={leads} activeFilter={activeFilter} onFilterChange={handleFilterChange} />
 
       {/* Toolbar */}
       <div className="dashboard-toolbar">
-        <div className="flex items-center gap-2.5">
-          <span className="text-sm font-semibold text-[#0F172A]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-sm font-semibold text-[#0F172A] shrink-0">
             {activeBranch?.name ?? '—'}
           </span>
           {!loading && activeBranch && (
-            <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium tabular-nums">
+            <span className="text-xs text-[#64748B] bg-[#F1F5F9] border border-[#E2E8F0] px-2 py-0.5 rounded-full font-medium tabular-nums shrink-0">
               {leads.length} total
+            </span>
+          )}
+          {activeFilter !== 'all' && (
+            <span className="flex items-center gap-1 text-xs font-medium text-[#0b6cbf] bg-[#EFF6FF] border border-[#BFDBFE] px-2.5 py-0.5 rounded-full shrink-0">
+              Showing: {FILTER_LABELS[activeFilter]}
+              <button
+                onClick={() => setActiveFilter('all')}
+                className="ml-0.5 hover:text-[#1e3a5f] transition-colors"
+                title="Clear filter"
+              >
+                ×
+              </button>
             </span>
           )}
         </div>
         {error && (
-          <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+          <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 shrink-0">
             {error}
           </span>
         )}
@@ -102,6 +132,7 @@ export default function Dashboard() {
           <LeadsTable
             leads={leads}
             loading={loading || (!activeBranch && !branchesLoading)}
+            statusFilter={activeFilter}
             onUpdate={updateLead}
             onTransfer={transferLead}
             dashboardId={activeDashboard.id}

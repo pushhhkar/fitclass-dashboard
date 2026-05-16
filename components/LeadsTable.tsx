@@ -11,6 +11,7 @@ import type {
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { Lead, UpdatePayload } from '@/types';
 import type { DynamicBranch } from '@/hooks/useBranches';
+import type { CardFilter } from './Dashboard';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -19,9 +20,19 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // the authority once loaded. This is only shown for ~1s during initial fetch.
 const FALLBACK_STATUS_OPTIONS = ['New', 'Call Attempted', 'Not Answering', 'Call Back Later', 'Budget Issue', 'Wrong Branch', 'Location Issue', 'Not Interested', 'Job Applicant', 'Visit Scheduled', 'Membership Purchased', 'Transfer to'];
 
+const FILTER_STATUSES: Record<CardFilter, string[] | null> = {
+  all:            null,
+  new:            ['New'],
+  callAttempted:  ['Call Attempted', 'Not Answering', 'Call Back Later'],
+  unqualified:    ['Budget Issue', 'Wrong Branch', 'Location Issue', 'Not Interested', 'Job Applicant'],
+  visitScheduled: ['Visit Scheduled'],
+  converted:      ['Membership Purchased'],
+};
+
 interface Props {
   leads: Lead[];
   loading: boolean;
+  statusFilter?: CardFilter;
   dashboardId: string;
   allBranches: DynamicBranch[];
   activeBranchName: string;
@@ -699,7 +710,7 @@ function buildWebsiteColumns(
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function LeadsTable({
-  leads, loading, dashboardId,
+  leads, loading, statusFilter = 'all', dashboardId,
   allBranches, activeBranchName,
   newLeadRowKeys, websiteHeaders, statusOptions,
   onUpdate, onTransfer,
@@ -712,7 +723,12 @@ export default function LeadsTable({
   // Use live options from Sheets; fall back to hardcoded list only before first fetch.
   const resolvedOptions = statusOptions.length ? statusOptions : FALLBACK_STATUS_OPTIONS;
 
-  const filtered = leads;
+  const filtered = useMemo(() => {
+    const allowed = FILTER_STATUSES[statusFilter];
+    if (!allowed) return leads;
+    const set = new Set(allowed);
+    return leads.filter(l => set.has(l.Status ?? ''));
+  }, [leads, statusFilter]);
 
   const columnDefs = useMemo(
     () => isWebsite

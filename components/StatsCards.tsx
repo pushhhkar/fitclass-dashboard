@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Lead, StatsData } from '@/types';
+import type { CardFilter } from './Dashboard';
 
 function useRelativeTime(date: Date | null): string {
   const [label, setLabel] = useState('');
@@ -84,28 +85,42 @@ interface CardProps {
   icon: React.ReactNode;
   isHero?: boolean;
   timeLabel?: string;
+  filterId: CardFilter;
+  activeFilter: CardFilter;
+  onFilterChange: (f: CardFilter) => void;
 }
 
-function StatCard({ label, count, total, iconBg, iconColor, icon, isHero, timeLabel }: CardProps) {
+function StatCard({ label, count, total, iconBg, iconColor, icon, isHero, timeLabel, filterId, activeFilter, onFilterChange }: CardProps) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const isActive = activeFilter === filterId;
 
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-xl px-3 py-2.5 flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow duration-200 flex-1 min-w-[110px]">
+    <button
+      onClick={() => onFilterChange(filterId)}
+      className={[
+        'text-left flex flex-col gap-1 rounded-xl px-3 py-2.5 flex-1 min-w-[110px]',
+        'border shadow-sm transition-all duration-150 cursor-pointer',
+        isActive
+          ? 'bg-[#0b6cbf] border-[#0b6cbf] shadow-md ring-2 ring-[#0b6cbf]/20'
+          : 'bg-white border-[#E2E8F0] hover:shadow-md hover:border-[#93C5FD]',
+      ].join(' ')}
+    >
       <div className="flex items-start justify-between gap-1.5">
-        <span className="text-[9px] font-semibold text-[#64748B] uppercase tracking-widest leading-tight">
+        <span className={`text-[9px] font-semibold uppercase tracking-widest leading-tight ${isActive ? 'text-blue-100' : 'text-[#64748B]'}`}>
           {label}
         </span>
-        <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+        <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${isActive ? 'bg-white/20 text-white' : `${iconBg} ${iconColor}`}`}>
           <span className="[&>svg]:w-3.5 [&>svg]:h-3.5">{icon}</span>
         </div>
       </div>
 
       <div className="flex items-end gap-1.5">
-        <span className={`font-bold text-[#0F172A] tabular-nums ${isHero ? 'text-xl' : 'text-lg'}`}>
+        <span className={`font-bold tabular-nums ${isHero ? 'text-xl' : 'text-lg'} ${isActive ? 'text-white' : 'text-[#0F172A]'}`}>
           {count}
         </span>
         {!isHero && (
-          <span className="text-[11px] font-semibold mb-px" style={{ color: pct > 0 ? '#16A34A' : '#94A3B8' }}>
+          <span className={`text-[11px] font-semibold mb-px ${isActive ? 'text-blue-100' : ''}`}
+            style={!isActive ? { color: pct > 0 ? '#16A34A' : '#94A3B8' } : undefined}>
             {pct}%
           </span>
         )}
@@ -113,15 +128,15 @@ function StatCard({ label, count, total, iconBg, iconColor, icon, isHero, timeLa
 
       {isHero ? (
         <div className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse" />
-          <span className="text-[9px] text-[#64748B]">
+          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isActive ? 'bg-green-300' : 'bg-[#16A34A]'}`} />
+          <span className={`text-[9px] ${isActive ? 'text-blue-100' : 'text-[#64748B]'}`}>
             {timeLabel ? `Updated ${timeLabel}` : 'Loading…'}
           </span>
         </div>
       ) : (
-        <p className="text-[9px] text-[#94A3B8]">of total leads</p>
+        <p className={`text-[9px] ${isActive ? 'text-blue-100' : 'text-[#94A3B8]'}`}>of total leads</p>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -129,9 +144,11 @@ function StatCard({ label, count, total, iconBg, iconColor, icon, isHero, timeLa
 interface Props {
   stats: StatsData;
   leads: Lead[];
+  activeFilter: CardFilter;
+  onFilterChange: (f: CardFilter) => void;
 }
 
-export default function StatsCards({ stats, leads }: Props) {
+export default function StatsCards({ stats, leads, activeFilter, onFilterChange }: Props) {
   const timeLabel = useRelativeTime(stats.lastUpdated);
 
   const counts = useMemo(() => {
@@ -162,6 +179,9 @@ export default function StatsCards({ stats, leads }: Props) {
           icon={<IconPeople />}
           isHero
           timeLabel={timeLabel}
+          filterId="all"
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
         />
 
         <StatCard
@@ -171,6 +191,9 @@ export default function StatsCards({ stats, leads }: Props) {
           iconBg="bg-blue-50"
           iconColor="text-[#0A6BA8]"
           icon={<IconPersonPlus />}
+          filterId="new"
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
         />
 
         <StatCard
@@ -180,6 +203,9 @@ export default function StatsCards({ stats, leads }: Props) {
           iconBg="bg-amber-50"
           iconColor="text-amber-600"
           icon={<IconPhone />}
+          filterId="callAttempted"
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
         />
 
         <StatCard
@@ -189,6 +215,9 @@ export default function StatsCards({ stats, leads }: Props) {
           iconBg="bg-red-50"
           iconColor="text-red-500"
           icon={<IconXCircle />}
+          filterId="unqualified"
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
         />
 
         <StatCard
@@ -198,6 +227,9 @@ export default function StatsCards({ stats, leads }: Props) {
           iconBg="bg-teal-50"
           iconColor="text-teal-600"
           icon={<IconCalendarCheck />}
+          filterId="visitScheduled"
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
         />
 
         <StatCard
@@ -207,6 +239,9 @@ export default function StatsCards({ stats, leads }: Props) {
           iconBg="bg-purple-50"
           iconColor="text-purple-600"
           icon={<IconTrophy />}
+          filterId="converted"
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
         />
 
       </div>
