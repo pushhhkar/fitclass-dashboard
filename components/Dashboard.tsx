@@ -7,13 +7,11 @@ import { useLeads } from '@/hooks/useLeads';
 import Navbar from './Navbar';
 import BranchTabs from './BranchTabs';
 import StatsCards from './StatsCards';
-import SearchBar from './SearchBar';
 import LeadsTable from './LeadsTable';
 
 export default function Dashboard() {
   const [activeDashboard, setActiveDashboard] = useState<Dashboard>(DASHBOARDS[0]);
   const [activeBranch, setActiveBranch]       = useState<DynamicBranch | null>(null);
-  const [search, setSearch]                   = useState('');
 
   const { branches, loading: branchesLoading, error: branchesError } = useBranches(activeDashboard.id);
 
@@ -39,12 +37,10 @@ export default function Dashboard() {
   const handleDashboardChange = (dashboard: Dashboard) => {
     setActiveDashboard(dashboard);
     setActiveBranch(null);
-    setSearch('');
   };
 
   const handleBranchChange = (branch: DynamicBranch) => {
     setActiveBranch(branch);
-    setSearch('');
   };
 
   return (
@@ -93,14 +89,11 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {error && (
-            <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
-              {error}
-            </span>
-          )}
-          <SearchBar value={search} onChange={setSearch} />
-        </div>
+        {error && (
+          <span className="text-xs text-[#EA580C] bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+            {error}
+          </span>
+        )}
       </div>
 
       {/* ── Grid region — flex:1, hands exact height to LeadsTable ────────── */}
@@ -109,7 +102,6 @@ export default function Dashboard() {
           <LeadsTable
             leads={leads}
             loading={loading || (!activeBranch && !branchesLoading)}
-            search={search}
             onUpdate={updateLead}
             onTransfer={transferLead}
             dashboardId={activeDashboard.id}

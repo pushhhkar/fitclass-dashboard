@@ -22,7 +22,6 @@ const FALLBACK_STATUS_OPTIONS = ['New', 'Call Attempted', 'Not Answering', 'Call
 interface Props {
   leads: Lead[];
   loading: boolean;
-  search: string;
   dashboardId: string;
   allBranches: DynamicBranch[];
   activeBranchName: string;
@@ -700,7 +699,7 @@ function buildWebsiteColumns(
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function LeadsTable({
-  leads, loading, search, dashboardId,
+  leads, loading, dashboardId,
   allBranches, activeBranchName,
   newLeadRowKeys, websiteHeaders, statusOptions,
   onUpdate, onTransfer,
@@ -713,20 +712,7 @@ export default function LeadsTable({
   // Use live options from Sheets; fall back to hardcoded list only before first fetch.
   const resolvedOptions = statusOptions.length ? statusOptions : FALLBACK_STATUS_OPTIONS;
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return leads;
-    const q = search.toLowerCase();
-    return leads.filter((l) =>
-      l.fullName.toLowerCase().includes(q) ||
-      l.phoneNumber.toLowerCase().includes(q) ||
-      (l.email ?? '').toLowerCase().includes(q) ||
-      l.address.toLowerCase().includes(q) ||
-      (l.reason ?? '').toLowerCase().includes(q) ||
-      l.campaignName.toLowerCase().includes(q) ||
-      l.Status.toLowerCase().includes(q) ||
-      l.Comments.toLowerCase().includes(q)
-    );
-  }, [leads, search]);
+  const filtered = leads;
 
   const columnDefs = useMemo(
     () => isWebsite
