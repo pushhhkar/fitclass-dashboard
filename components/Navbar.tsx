@@ -25,7 +25,7 @@ export default function Navbar({
         {/* Logo */}
         <div className="shrink-0">
           <Image
-            src="/fitclass logo white.webp"
+            src="/fitclass-logo-white.webp"
             alt="FitClass Logo"
             width={320}
             height={80}

@@ -21,7 +21,7 @@ function showLeadNotification(lead: Lead, branchName: string) {
   const name = lead.fullName || lead.phoneNumber || 'Unknown';
   const n = new Notification('New Lead Received', {
     body: `${name} • ${branchName}`,
-    icon: '/fitclass logo white.png',
+    icon: '/fitclass-logo-white.webp',
     tag: `lead-${lead.rowIndex}`,
   });
 
